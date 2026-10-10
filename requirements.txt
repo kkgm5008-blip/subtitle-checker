@@ -1,3 +1,4 @@
 streamlit>=1.30
 requests>=2.31
 faster-whisper>=1.0
+av==18.1.0
