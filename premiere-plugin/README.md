@@ -27,7 +27,7 @@
 
 ### 1단계: 플러그인 설치 (.ccx 더블클릭)
 
-1. 이 저장소의 [`premiere-plugin/dist/subtitle-checker-premiere-1.3.1-windows.zip`](dist/subtitle-checker-premiere-1.3.1-windows.zip)을 내려받아 압축을 풉니다 (GitHub에서 파일을 열고 Download raw file). 안에 `.ccx`, `claude-bridge.ps1`, `README.txt`가 있습니다. Mac은 [`.ccx`](dist/subtitle-checker-premiere-1.3.1.ccx)만 받으면 됩니다.
+1. 이 저장소의 [`premiere-plugin/dist/subtitle-checker-premiere-1.3.2-windows.zip`](dist/subtitle-checker-premiere-1.3.2-windows.zip)을 내려받아 압축을 풉니다 (GitHub에서 파일을 열고 Download raw file). 안에 `.ccx`, `claude-bridge.ps1`, `README.txt`가 있습니다. Mac은 [`.ccx`](dist/subtitle-checker-premiere-1.3.2.ccx)만 받으면 됩니다.
 2. 프리미어를 끈 상태에서 `.ccx` 파일을 더블클릭합니다. Creative Cloud 데스크톱 앱이 설치를 진행합니다. 마켓플레이스 밖에서 받은 플러그인이라는 확인 창이 나오면 설치를 계속하세요.
 3. 프리미어를 켜고 **창(Window) > UXP 플러그인(UXP Plugins) > 자막 맞춤법 · AI 컨펌**을 엽니다.
 
@@ -38,13 +38,13 @@
 Windows (PowerShell):
 
 ```powershell
-& "C:\Program Files\Common Files\Adobe\Adobe Desktop Common\RemoteComponents\UPI\UnifiedPluginInstallerAgent\UnifiedPluginInstallerAgent.exe" /install "$env:USERPROFILE\Downloads\subtitle-checker-premiere-1.3.1.ccx"
+& "C:\Program Files\Common Files\Adobe\Adobe Desktop Common\RemoteComponents\UPI\UnifiedPluginInstallerAgent\UnifiedPluginInstallerAgent.exe" /install "$env:USERPROFILE\Downloads\subtitle-checker-premiere-1.3.2.ccx"
 ```
 
 macOS (터미널):
 
 ```bash
-"/Library/Application Support/Adobe/Adobe Desktop Common/RemoteComponents/UPI/UnifiedPluginInstallerAgent/UnifiedPluginInstallerAgent.app/Contents/MacOS/UnifiedPluginInstallerAgent" --install ~/Downloads/subtitle-checker-premiere-1.3.1.ccx
+"/Library/Application Support/Adobe/Adobe Desktop Common/RemoteComponents/UPI/UnifiedPluginInstallerAgent/UnifiedPluginInstallerAgent.app/Contents/MacOS/UnifiedPluginInstallerAgent" --install ~/Downloads/subtitle-checker-premiere-1.3.2.ccx
 ```
 
 #### 개발자 모드 (UXP Developer Tool)
@@ -64,10 +64,12 @@ macOS (터미널):
    ```
 
    새 PowerShell 창에서 `claude`를 실행하고, 브라우저가 열리면 내 Claude 계정(Pro·Max)으로 로그인합니다. 로그인이 끝나면 그 창은 닫아도 됩니다.
-2. **구독 연결 프로그램 켜기** (프리미어를 쓸 때마다): 압축을 푼 폴더의 `claude-bridge.ps1`을 마우스 오른쪽 버튼으로 누르고 **PowerShell에서 실행**을 고릅니다. 보안 경고가 나오면 한 번 실행(R)을 고르세요. "준비 완료"가 뜨면 프리미어를 쓰는 동안 그 창을 켜 둡니다.
-3. 프리미어 패널 **설정** 탭에서 사용 방식이 **내 Claude 구독**인지 확인하고 **구독 연결 확인**을 누릅니다.
+2. **구독 연결 프로그램 켜기** (프리미어를 쓸 때마다): 압축을 푼 폴더의 `claude-bridge.ps1`을 마우스 오른쪽 버튼으로 누르고 **PowerShell에서 실행**을 고릅니다. 윈도우 11은 오른쪽 버튼 메뉴에서 **추가 옵션 표시**를 누르면 나와요. 보안 경고가 나오면 한 번 실행(R)을 고르세요. 파란 창에 "Claude 로그인: 됨"과 "준비 완료"가 뜨면 프리미어를 쓰는 동안 그 창을 켜 둡니다.
+   - 창에 "Claude 로그인: 안 됨"이 나오면 1번의 로그인을 다시 하고 창을 다시 엽니다.
+   - 오류가 나면 창이 바로 닫히지 않고 빨간 글씨로 이유를 보여 줍니다.
+3. 프리미어 패널 **설정** 탭에서 사용 방식이 **내 Claude 구독**인지 확인하고 **구독 연결 확인**을 누릅니다. 연결 프로그램 → Claude Code → 로그인 → 실제 응답을 차례로 확인해서 ✅/❌와 해결 방법을 보여 줘요. 요금제에서 Opus를 쓸 수 없으면 Sonnet으로 바꿔서 연결해요.
 
-구독 연결 프로그램은 이 PC 안(127.0.0.1)에서만 연결을 받고, 플러그인이 보낸 작업만 처리합니다. Claude Code는 작업 폴더 안 파일을 읽는 도구만 쓰도록 제한해서 실행합니다. 작업이 끝나면 임시 폴더를 지웁니다.
+구독 연결 프로그램은 이 PC 안(127.0.0.1, 포트 41234부터 빈 곳)에서만 연결을 받고, 플러그인이 보낸 작업만 처리합니다. Claude Code는 작업 폴더 안 파일을 읽는 도구만 쓰도록 제한해서 실행합니다. 작업이 끝나면 임시 폴더를 지웁니다.
 
 ## 사용법
 
@@ -108,7 +110,7 @@ macOS (터미널):
 
 ### 잘 안 될 때
 
-- 패널 제목 옆에 설치된 버전(예: v1.3.1)이 보입니다. 새 버전을 설치했는데 숫자가 그대로면 프리미어를 완전히 껐다가 다시 켜 주세요.
+- 패널 제목 옆에 설치된 버전(예: v1.3.2)이 보입니다. 새 버전을 설치했는데 숫자가 그대로면 프리미어를 완전히 껐다가 다시 켜 주세요.
 - 버튼을 눌렀을 때 예상하지 못한 오류가 나면 패널 맨 위 빨간 상자에 오류 문구가 그대로 나옵니다. 그 문구를 알려 주면 원인을 바로 찾을 수 있어요.
 
 ### 자가 진단
@@ -141,7 +143,7 @@ premiere-plugin/
     lib/naver.js       네이버 맞춤법 검사기 (루트의 spellcheck.py를 옮긴 것)
     lib/srt.js         SRT·VTT·TXT 읽기/쓰기 (루트의 srt_io.py와 같은 규칙)
     lib/…              비교, 프레임 시점, 리포트, 저장소
-  bridge/claude-bridge.ps1  구독 연결 프로그램 (PowerShell, 127.0.0.1:51234 → claude -p)
+  bridge/claude-bridge.ps1  구독 연결 프로그램 (PowerShell, 127.0.0.1:41234~41237 → claude -p)
   tests/               Node 테스트 (가짜 프리미어로 패널 전체를 눌러 보는 테스트 포함)
   build_ccx.py         plugin/ → dist/*.ccx, 윈도우 설치 묶음 zip
 ```

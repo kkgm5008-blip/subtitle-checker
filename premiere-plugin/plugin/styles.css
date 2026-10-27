@@ -56,7 +56,7 @@ input[type="checkbox"] { margin-right: 6px; }
 .field.col span { margin-bottom: 4px; }
 .check { display: flex; align-items: center; margin: 6px 0; color: #cfcfcf; }
 
-.msg { margin-top: 4px; line-height: 1.5; min-height: 14px; }
+.msg { margin-top: 4px; line-height: 1.5; min-height: 14px; white-space: pre-wrap; }
 .msg.err { color: #ff8a7a; }
 .msg.ok { color: #7fd99a; }
 

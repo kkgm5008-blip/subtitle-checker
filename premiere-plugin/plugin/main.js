@@ -609,16 +609,65 @@ async function saveKey() {
   say("keyMsg", key ? (where === "secure" ? "키를 보안 저장소에 저장했어요." : "키를 저장했어요 (보안 저장소를 쓸 수 없어 플러그인 저장소에 저장).") : "키를 지웠어요.", "ok");
 }
 
+const modelName = id => claude.MODELS[id].label.split(" (")[0];
+
+function authLine(auth) {
+  if (!auth || !auth.checked) return "3. Claude 로그인: 확인 못 함 (Claude Code가 옛 버전이면 PowerShell에서 claude update)";
+  if (!auth.loggedIn) return null;
+  const who = [auth.email, auth.plan].filter(Boolean).join(", ");
+  return `3. Claude 로그인 ✅${who ? ` (${who})` : ""}`;
+}
+
+/** 구독 연결 확인: 연결 프로그램 → Claude Code → 로그인 → 실제 짧은 질문까지 차례로, 막힌 곳과 해결 방법을 보여 줌 */
 async function testSubscription() {
-  say("subMsg", "구독 연결 프로그램 확인 중…");
+  if (state.busy) return;
   setBusy(true);
+  const lines = [];
+  const out = kind => say("subMsg", lines.join("\n"), kind);
   try {
-    const h = await bridge.health();
-    say("subMsg", `연결 프로그램 확인 (${h.version || "Claude Code"}). Claude에게 짧게 물어보는 중…`);
-    await claude.ping({ mode: "subscription", model: state.prefs.model });
-    say("subMsg", `연결됐어요. 내 구독으로 ${claude.MODELS[state.prefs.model].label.split(" (")[0]}을(를) 씁니다.`, "ok");
+    lines.push("1. 구독 연결 프로그램 찾는 중…"); out();
+    let h;
+    try { h = await bridge.health(); } catch (e) {
+      if (e.code === "claude_not_found") { lines[0] = "1. 구독 연결 프로그램 ✅"; lines.push("2. Claude Code ❌ " + e.message); }
+      else lines[0] = "1. 구독 연결 프로그램 ❌ " + e.message;
+      out("err");
+      return;
+    }
+    lines[0] = `1. 구독 연결 프로그램 ✅ (${h.bridge ? "v" + h.bridge : "옛 버전"} · 포트 ${h.port})`;
+    if (!h.bridge) lines.push("   ⚠ 옛 연결 프로그램이에요. 창을 닫고 새 설치 묶음의 claude-bridge.ps1로 다시 켜 주세요.");
+    lines.push(`2. Claude Code ✅ ${h.version || ""}`.trim());
+    const auth = authLine(h.auth);
+    if (auth === null) {
+      lines.push("3. Claude 로그인 ❌ 로그인이 안 돼 있어요. PowerShell을 새로 열고 claude 를 실행한 뒤 /login 으로 내 Claude 계정(Pro·Max 구독)에 로그인하고, 연결 프로그램 창을 닫았다가 다시 켜 주세요.");
+      out("err");
+      return;
+    }
+    lines.push(auth);
+    if (h.auth && /api.?key|console/i.test(h.auth.method || "")) lines.push("   ⚠ Claude Code가 API 키로 로그인돼 있으면 구독이 아니라 API 요금이 나가요. claude → /logout → /login 에서 Claude 계정으로 로그인하세요.");
+    let model = state.prefs.model;
+    lines.push(`4. ${modelName(model)}에게 짧게 물어보는 중… (보통 10~30초)`); out();
+    try {
+      await claude.ping({ mode: "subscription", model });
+    } catch (e) {
+      if (e.code !== "model_unavailable" || model === "claude-sonnet-5-5") throw e;
+      // 요금제에서 Opus를 못 쓰면 Sonnet으로 바꿔서 다시
+      lines[lines.length - 1] = `4. ${modelName(model)}은(는) 지금 요금제에서 쓸 수 없어서 Sonnet으로 다시 해 볼게요…`; out();
+      model = "claude-sonnet-5-5";
+      await claude.ping({ mode: "subscription", model });
+      state.prefs.model = model;
+      savePrefs();
+      setOptions($("model"), Object.keys(claude.MODELS).map(id => [id, claude.MODELS[id].label]), model);
+      updateEstimate();
+      lines.push("   설정의 Claude 모델을 Sonnet 5.5로 바꿨어요.");
+    }
+    lines[lines.findIndex(l => l.startsWith("4."))] = `4. ${modelName(model)} 응답 ✅`;
+    lines.push(`연결됐어요. 내 구독으로 ${modelName(model)}을(를) 씁니다 (추가 비용 없음).`);
+    out("ok");
   } catch (e) {
-    say("subMsg", e.message, "err");
+    const i = lines.findIndex(l => l.startsWith("4."));
+    if (i !== -1) lines[i] = lines[i].replace(/에게 짧게 물어보는 중….*$/, " 응답 ❌");
+    lines.push(e.message);
+    out("err");
   } finally {
     setBusy(false);
   }
@@ -711,7 +760,9 @@ async function runDiagnostics() {
     if (subscription()) {
       await step("구독 연결 프로그램", async () => {
         const h = await bridge.health();
-        return `${h.version || "연결됨"} (Claude 로그인까지 보려면 '구독 연결 확인')`;
+        const auth = authLine(h.auth);
+        if (auth === null) throw new Error(`연결 프로그램 v${h.bridge || "옛 버전"} · ${h.version || "Claude Code"} · Claude 로그인이 안 돼 있어요 (PowerShell에서 claude → /login)`);
+        return `v${h.bridge || "옛 버전"} · 포트 ${h.port} · ${h.version || "Claude Code"} · ${auth.replace(/^3\. /, "")} (실제로 물어보려면 '구독 연결 확인')`;
       });
     } else {
       await step("API 키", async () => {

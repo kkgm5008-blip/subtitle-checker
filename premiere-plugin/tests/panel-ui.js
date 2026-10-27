@@ -162,16 +162,19 @@ function ocrAnswer(text) {
 }
 const reply = (status, obj) => ({ ok: status === 200, status, headers: { get: () => null }, text: async () => JSON.stringify(obj), json: async () => obj });
 let bridgeUp = true;
+const bridgeState = { loggedIn: true, noOpus: false };
 global.fetch = async (url, init) => {
-  if (url.startsWith("http://127.0.0.1:51234")) {
-    if (!bridgeUp) throw new TypeError("fetch failed");
+  if (/^http:\/\/(127\.0\.0\.1|localhost):\d+\//.test(url)) {
+    // 연결 프로그램은 41235에서 기다림 (41234는 다른 프로그램이 쓰는 중이라고 가정)
+    if (!bridgeUp || new URL(url).port !== "41235") throw new TypeError("fetch failed");
     const p = new URL(url).pathname;
     assert.equal(init.headers["X-Subtitle-Checker"], "1");
     bridgeCalls.push({ method: init.method, path: p, body: init.body });
-    if (p === "/health") return reply(200, { ok: true, version: "2.1.300 (Claude Code)" });
+    if (p === "/health") return reply(200, { ok: true, bridge: "1.3.2", version: "2.1.300 (Claude Code)", auth: { checked: true, loggedIn: bridgeState.loggedIn, method: "claude.ai", plan: "pro" } });
     if (p === "/jobs") return reply(200, { ok: true, id: "j" + bridgeCalls.length });
     if (/\/files\//.test(p)) { assert.equal(init.body, "/9j/AQID"); return reply(200, { ok: true }); }
     const job = JSON.parse(init.body);
+    if (bridgeState.noOpus && job.model === "opus") return reply(200, { type: "result", subtype: "success", is_error: true, result: "There's an issue with the selected model (claude-opus-5-5). It may not exist or you may not have access to it." });
     const out = /"fixes"/.test(job.prompt) ? spellAnswer(job.prompt) : /"verdict"/.test(job.prompt) ? REVIEW : /"scenes"/.test(job.prompt) ? ocrAnswer(job.prompt) : { ok: true };
     return reply(200, { type: "result", subtype: "success", is_error: false, result: JSON.stringify(out) });
   }
@@ -239,6 +242,14 @@ async function until(pred, what) {
   bridgeUp = true;
   click("btnTestSub"); await until(() => /연결됐어요/.test($("subMsg").textContent), "bridge ok");
   console.log("subMsg:", $("subMsg").textContent);
+  assert.match($("subMsg").textContent, /1\. 구독 연결 프로그램 ✅ \(v1\.3\.2 · 포트 41235\)\n2\. Claude Code ✅ 2\.1\.300 \(Claude Code\)\n3\. Claude 로그인 ✅ \(pro\)\n4\. Claude Opus 5\.5 응답 ✅/);
+  // 로그인이 안 돼 있으면 3단계에서 멈추고 방법을 알려 줌 (Claude에게 묻지 않음)
+  bridgeState.loggedIn = false;
+  const runsBeforeLogin = bridgeCalls.filter(c => c.path.endsWith("/run")).length;
+  click("btnTestSub"); await until(() => /3\. Claude 로그인 ❌/.test($("subMsg").textContent) && !$("btnTestSub").disabled, "not logged in");
+  assert.match($("subMsg").textContent, /\/login/);
+  assert.equal(bridgeCalls.filter(c => c.path.endsWith("/run")).length, runsBeforeLogin);
+  bridgeState.loggedIn = true;
   openFile = { name: "구독.srt", read: async () => "1\n00:00:01,000 --> 00:00:02,000\n그럼 안되요\n" };
   click("btnOpenFile"); await until(() => /1개/.test($("sourceLine").textContent), "srt loaded (sub)");
   click("btnSpellRun"); await until(() => $("spellResult").style.display === "", "spell result (sub)");
@@ -425,7 +436,7 @@ async function until(pred, what) {
   const prefs = JSON.parse(window.localStorage.getItem("subtitle-checker.prefs"));
   assert.equal(prefs.range, "inout");
   assert.equal(prefs.interval, 5);
-  assert.equal($("version").textContent, "v1.3.1", "version shown in header");
+  assert.equal($("version").textContent, "v1.3.2", "version shown in header");
   assert.equal($("errorBox").style.display, "none", "no unexpected errors: " + $("errorBox").textContent);
   // 버튼 처리 중 예상 못 한 오류는 패널 위쪽에 그대로 보임
   const srtLib = require(path.join(PLUGIN, "lib", "srt.js"));
@@ -435,5 +446,13 @@ async function until(pred, what) {
   srtLib.formatClock = origClock;
   console.log("errorBox:", $("errorBox").textContent);
   assert.match($("errorBox").textContent, /^⚠ range: formatClock 테스트 오류\n이 문구를 그대로 알려 주세요\./);
+  // 요금제에서 Opus를 못 쓰면 Sonnet으로 바꿔서 연결
+  change("mode", "subscription"); bridgeState.noOpus = true;
+  click("btnTestSub"); await until(() => /연결됐어요/.test($("subMsg").textContent) && !$("btnTestSub").disabled, "opus fallback");
+  console.log("subMsg (no opus):", $("subMsg").textContent);
+  assert.match($("subMsg").textContent, /Sonnet 5\.5로 바꿨어요/);
+  assert.equal($("model").value, "claude-sonnet-5-5");
+  assert.equal(JSON.parse(window.localStorage.getItem("subtitle-checker.prefs")).model, "claude-sonnet-5-5");
+  assert.equal($("errorBox").style.display, "", "earlier forced error still shown");
   console.log("ALL UI CHECKS PASSED");
 })().catch(e => { console.error("FAIL:", e); process.exit(1); });
