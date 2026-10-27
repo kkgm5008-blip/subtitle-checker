@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="styles.css">
+  <script src="main.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div class="title">자막 맞춤법 · AI 컨펌</div>
+    <div class="seqline"><span id="seqLine">시퀀스 확인 중…</span> <button class="link" id="btnRefresh">새로고침</button></div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab on" data-tab="spell">맞춤법</button>
+    <button class="tab" data-tab="confirm">AI 컨펌</button>
+    <button class="tab" data-tab="settings">설정</button>
+  </nav>
+
+  <div class="notice" id="keyNotice" style="display:none">Claude를 쓰려면 <button class="link" id="btnGoSettings">설정 탭</button>에서 Anthropic API 키를 넣어 주세요.</div>
+
+  <!-- 맞춤법 -->
+  <section class="pane" id="pane-spell">
+    <div class="box">
+      <div class="label">1. 검사할 자막 불러오기</div>
+      <div class="buttons">
+        <button id="btnReadTimeline">타임라인 그래픽 텍스트 읽기</button>
+        <button id="btnOpenFile">자막 파일 열기 (SRT·VTT·TXT)</button>
+      </div>
+      <div class="hint" id="sourceLine">프리미어 캡션 자막은 텍스트 패널 ··· 메뉴의 'SRT 파일로 내보내기'로 저장한 뒤 열어 주세요.</div>
+    </div>
+
+    <div class="box">
+      <div class="label">2. 검사</div>
+      <div class="field">
+        <span>검사 엔진</span>
+        <select id="engine">
+          <option value="claude">Claude (문맥까지 보고 고침 · 유료)</option>
+          <option value="naver">네이버 맞춤법 검사기 (무료 · 막힐 수 있음)</option>
+        </select>
+      </div>
+      <div class="buttons">
+        <button class="primary" id="btnSpellRun">맞춤법 검사 시작</button>
+        <button id="btnSpellCancel" style="display:none">멈추기</button>
+      </div>
+      <div class="msg" id="spellMsg"></div>
+    </div>
+
+    <div id="spellResult" style="display:none">
+      <div class="summary" id="spellSummary"></div>
+      <label class="check"><input type="checkbox" id="onlyChanged" checked> 수정할 곳만 보기</label>
+      <div class="buttons">
+        <button id="btnSpellMarkers">타임라인에 마커로 표시</button>
+        <button id="btnSaveSrt">교정된 자막 저장</button>
+        <button id="btnSpellReport">리포트 저장</button>
+      </div>
+      <div class="list" id="spellList"></div>
+    </div>
+  </section>
+
+  <!-- AI 컨펌 -->
+  <section class="pane" id="pane-confirm" style="display:none">
+    <div class="box">
+      <div class="label">Claude가 시퀀스 화면을 보고 컨펌해 드려요</div>
+      <div class="hint">시퀀스에서 정지 화면(프레임)을 뽑아 보냅니다. Claude는 소리와 움직임은 볼 수 없어요. 자막 내용까지 대조하려면 맞춤법 탭에서 자막을 먼저 불러오세요.</div>
+      <div class="field">
+        <span>검토 구간</span>
+        <select id="range">
+          <option value="all">시퀀스 전체</option>
+          <option value="inout">인·아웃 구간만</option>
+        </select>
+      </div>
+      <div class="field">
+        <span>프레임 간격</span>
+        <select id="interval">
+          <option value="1">1초마다</option>
+          <option value="2">2초마다</option>
+          <option value="3">3초마다</option>
+          <option value="5">5초마다</option>
+          <option value="10">10초마다</option>
+        </select>
+      </div>
+      <div class="field">
+        <span>최대 프레임 수</span>
+        <select id="maxFrames">
+          <option value="10">10장</option>
+          <option value="20">20장</option>
+          <option value="40">40장</option>
+          <option value="60">60장</option>
+          <option value="80">80장</option>
+        </select>
+      </div>
+      <label class="check"><input type="checkbox" id="perSegment"> 불러온 자막마다 한 장씩 (자막 없는 구간은 간격대로)</label>
+      <label class="check"><input type="checkbox" id="withSubs" checked> 불러온 자막 목록도 함께 보내기</label>
+      <div class="field">
+        <span>검토 초점</span>
+        <select id="focus">
+          <option value="all">전체 컨펌 (맞춤법 + 자막 + 화면 + 요청사항)</option>
+          <option value="text">자막·맞춤법 위주</option>
+          <option value="visual">화면·편집 위주</option>
+        </select>
+      </div>
+      <div class="field col">
+        <span>요청사항 (선택)</span>
+        <textarea id="brief" rows="3" placeholder="예: 유튜브 브이로그. 자막은 하단 중앙, 노란 강조색. 로고는 오른쪽 위에 계속 보여야 함."></textarea>
+      </div>
+      <div class="hint" id="estimate"></div>
+      <div class="buttons">
+        <button class="primary" id="btnConfirm">컨펌 요청</button>
+        <button id="btnConfirmCancel" style="display:none">멈추기</button>
+      </div>
+      <div class="msg" id="confirmMsg"></div>
+    </div>
+
+    <div id="confirmResult" style="display:none">
+      <div class="verdict" id="verdict"></div>
+      <div class="summary" id="reviewSummary"></div>
+      <div class="buttons">
+        <button id="btnConfirmMarkers">타임라인에 마커로 표시</button>
+        <button id="btnConfirmReport">리포트 저장</button>
+        <button id="btnClearMarkers">AI 마커 모두 지우기</button>
+      </div>
+      <div class="list" id="issueList"></div>
+    </div>
+  </section>
+
+  <!-- 설정 -->
+  <section class="pane" id="pane-settings" style="display:none">
+    <div class="box">
+      <div class="label">Anthropic API 키</div>
+      <div class="hint">Claude를 쓰려면 API 키가 필요해요. 키는 이 컴퓨터의 보안 저장소에만 저장되고, 요청은 이 컴퓨터에서 Anthropic으로 바로 갑니다.</div>
+      <input type="password" id="apiKey" placeholder="sk-ant-...">
+      <div class="buttons">
+        <button class="primary" id="btnSaveKey">저장</button>
+        <button id="btnTestKey">연결 테스트</button>
+        <button class="link" id="btnGetKey">키 만들러 가기 ↗</button>
+      </div>
+      <div class="msg" id="keyMsg"></div>
+    </div>
+
+    <div class="box">
+      <div class="field">
+        <span>Claude 모델</span>
+        <select id="model"></select>
+      </div>
+      <div class="field">
+        <span>프레임 크기 (긴 변)</span>
+        <select id="longEdge">
+          <option value="960">960px (가볍고 저렴)</option>
+          <option value="1280">1280px (기본)</option>
+          <option value="1600">1600px (작은 글씨까지)</option>
+        </select>
+      </div>
+      <div class="hint">대략의 비용: Opus 5.5로 프레임 40장 컨펌 한 번에 0.3~0.6달러, 자막 300줄 맞춤법 검사에 0.05~0.2달러. Sonnet 5.5는 절반입니다.</div>
+    </div>
+
+    <div class="box">
+      <div class="label">보내는 내용</div>
+      <div class="hint">컨펌을 누르면 뽑은 프레임 이미지, 요청사항, (선택 시) 자막 목록이 Anthropic API로 전송됩니다. 맞춤법 검사는 자막 글자만 보냅니다. 네이버 엔진을 고르면 자막 글자가 네이버로 갑니다.</div>
+    </div>
+  </section>
+</body>
+</html>

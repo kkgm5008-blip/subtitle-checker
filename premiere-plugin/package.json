@@ -1,0 +1,13 @@
+{
+  "name": "subtitle-checker-premiere-plugin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "프리미어 프로 UXP 패널: 자막 맞춤법 검사와 Claude 영상 컨펌",
+  "scripts": {
+    "test": "node --test tests/*.test.js && node tests/panel-ui.js",
+    "build": "python3 build_ccx.py"
+  },
+  "devDependencies": {
+    "jsdom": "24.1.3"
+  }
+}
