@@ -27,7 +27,7 @@
 
 ### 1단계: 플러그인 설치 (.ccx 더블클릭)
 
-1. 이 저장소의 [`premiere-plugin/dist/subtitle-checker-premiere-1.2.1-windows.zip`](dist/subtitle-checker-premiere-1.2.1-windows.zip)을 내려받아 압축을 풉니다 (GitHub에서 파일을 열고 Download raw file). 안에 `.ccx`, `claude-bridge.ps1`, `README.txt`가 있습니다. Mac은 [`.ccx`](dist/subtitle-checker-premiere-1.2.1.ccx)만 받으면 됩니다.
+1. 이 저장소의 [`premiere-plugin/dist/subtitle-checker-premiere-1.3.0-windows.zip`](dist/subtitle-checker-premiere-1.3.0-windows.zip)을 내려받아 압축을 풉니다 (GitHub에서 파일을 열고 Download raw file). 안에 `.ccx`, `claude-bridge.ps1`, `README.txt`가 있습니다. Mac은 [`.ccx`](dist/subtitle-checker-premiere-1.3.0.ccx)만 받으면 됩니다.
 2. 프리미어를 끈 상태에서 `.ccx` 파일을 더블클릭합니다. Creative Cloud 데스크톱 앱이 설치를 진행합니다. 마켓플레이스 밖에서 받은 플러그인이라는 확인 창이 나오면 설치를 계속하세요.
 3. 프리미어를 켜고 **창(Window) > UXP 플러그인(UXP Plugins) > 자막 맞춤법 · AI 컨펌**을 엽니다.
 
@@ -38,13 +38,13 @@
 Windows (PowerShell):
 
 ```powershell
-& "C:\Program Files\Common Files\Adobe\Adobe Desktop Common\RemoteComponents\UPI\UnifiedPluginInstallerAgent\UnifiedPluginInstallerAgent.exe" /install "$env:USERPROFILE\Downloads\subtitle-checker-premiere-1.2.1.ccx"
+& "C:\Program Files\Common Files\Adobe\Adobe Desktop Common\RemoteComponents\UPI\UnifiedPluginInstallerAgent\UnifiedPluginInstallerAgent.exe" /install "$env:USERPROFILE\Downloads\subtitle-checker-premiere-1.3.0.ccx"
 ```
 
 macOS (터미널):
 
 ```bash
-"/Library/Application Support/Adobe/Adobe Desktop Common/RemoteComponents/UPI/UnifiedPluginInstallerAgent/UnifiedPluginInstallerAgent.app/Contents/MacOS/UnifiedPluginInstallerAgent" --install ~/Downloads/subtitle-checker-premiere-1.2.1.ccx
+"/Library/Application Support/Adobe/Adobe Desktop Common/RemoteComponents/UPI/UnifiedPluginInstallerAgent/UnifiedPluginInstallerAgent.app/Contents/MacOS/UnifiedPluginInstallerAgent" --install ~/Downloads/subtitle-checker-premiere-1.3.0.ccx
 ```
 
 #### 개발자 모드 (UXP Developer Tool)
@@ -80,9 +80,12 @@ macOS (터미널):
 1. **자막 불러오기**
    - 프리미어 캡션 자막: 텍스트 패널(창 > 텍스트)의 캡션 탭 ··· 메뉴에서 **SRT 파일로 내보내기**를 한 뒤, 패널에서 **자막 파일 열기**.
    - Vrew 같은 다른 프로그램에서 만든 SRT도 그대로 열 수 있어요. 파일은 UTF-8이어야 합니다.
-   - 문자 도구나 MOGRT로 넣은 그래픽 자막: **타임라인 그래픽 텍스트 읽기**.
+   - 문자 도구나 MOGRT로 넣은 그래픽 자막 (텍스트 패널의 그래픽 탭에 보이는 글자): **타임라인 그래픽 텍스트 읽기**.
+     - 프리미어 25.6~26.x는 플러그인에 그래픽 글자 값을 알려 주지 않는 경우가 많아요 (Adobe에 알려진 문제). 그래서 효과 컨트롤에 보이는 레이어 이름 "텍스트(…)"나 클립 이름에서 읽고, 그래도 못 읽은 클립은 **구독 방식이면 바로 화면을 보고 받아 적습니다** (추가 비용 없음).
+     - **화면 보고 받아 적기 (Claude)**: 그래픽 클립마다 프레임을 한 장씩 뽑아 Claude가 화면 글자를 틀린 글자까지 그대로 받아 적어요. 이름에서 읽은 글자는 고친 뒤 이름이 안 바뀌었으면 실제 화면과 다를 수 있으니, 정확하게 검사하려면 이 버튼을 쓰세요. 영상 내내 떠 있는 코너 제목처럼 겹친 그래픽은 클립별로 나눠 줍니다.
+     - 결과 카드에 `레이어 이름`·`클립 이름`·`화면` 표시가 붙어서 어디서 읽은 글자인지 알 수 있어요.
 2. 검사 엔진을 고르고 **맞춤법 검사 시작**.
-   - Claude: 문맥까지 보고 고치고, 이유를 알려 줍니다 (유료).
+   - Claude: 문맥까지 보고 고치고, 이유를 알려 줍니다. 구독 방식이면 내 구독 사용량에서 차감되고 추가 비용이 없어요. API 방식은 쓴 만큼 과금돼요.
    - 네이버: 무료지만 네이버 쪽 사정으로 막힐 수 있어요.
 3. 결과 보기: 빨간 취소선은 지울 글자, 초록은 새 글자, `␣`는 띄어쓰기입니다. 시간 버튼을 누르면 재생헤드가 그 자막으로 갑니다. 원하지 않는 제안은 **이 제안 빼기**.
 4. **타임라인에 마커로 표시**: 수정할 자막마다 노란 마커가 생깁니다 (확인이 필요한 곳은 파란 마커). 마커 패널에서 하나씩 넘겨 보며 고치면 됩니다.
@@ -105,13 +108,14 @@ macOS (터미널):
 
 ### 자가 진단 (잘 안 될 때)
 
-시퀀스를 열어 두고 **설정 → 자가 진단 시작**을 누르면, 이 프리미어에서 플러그인 기능이 되는지 한 번에 점검합니다: 시퀀스 읽기, 재생헤드 이동, 프레임 내보내기, 그래픽 텍스트 읽기, 마커 만들기·지우기, 구독 연결 프로그램(또는 API 키). 테스트 마커는 바로 지우고 Claude 사용량은 쓰지 않아요. 결과 글을 복사하거나 **진단 결과 저장**으로 저장해서 Claude에게 보내 주면 문제를 바로 찾을 수 있어요.
+시퀀스를 열어 두고 **설정 → 자가 진단 시작**을 누르면, 이 프리미어에서 플러그인 기능이 되는지 한 번에 점검합니다: 시퀀스 읽기, 재생헤드 이동, 프레임 내보내기, 그래픽 텍스트 읽기(글자를 어디서 읽었는지와 그래픽 클립의 효과·속성 구조까지), 마커 만들기·지우기, 구독 연결 프로그램(또는 API 키). 테스트 마커는 바로 지우고 Claude 사용량은 쓰지 않아요. 결과 글을 복사하거나 **진단 결과 저장**으로 저장해서 Claude에게 보내 주면 문제를 바로 찾을 수 있어요.
 
 ## 알아 둘 점
 
 - Claude는 **정지 화면만** 봅니다. 소리, 움직임, 프레임과 프레임 사이 내용은 볼 수 없어요. 간격을 좁히면 더 꼼꼼해지지만 비용이 늘어납니다.
 - 프리미어 API로는 캡션 트랙의 글자를 바로 읽을 수 없어서 SRT로 내보낸 뒤 불러옵니다. 캡션이 컨펌용 프레임 이미지에 찍혀 나오는지는 프리미어 버전에 따라 다를 수 있어요.
-- **타임라인 그래픽 텍스트 읽기**는 프리미어 버전이나 그래픽 종류에 따라 일부 텍스트를 못 읽을 수 있어요. 그럴 때는 검수팀 리뷰(검토 초점: 오류 위주)로 화면 속 글자를 검사하세요.
+- **타임라인 그래픽 텍스트 읽기**는 프리미어 버전에 따라 글자 값을 못 받을 수 있어서 레이어·클립 이름과 화면 받아 적기로 보완합니다. 화면 받아 적기는 그래픽 클립 하나에 프레임 한 장을 Claude에게 보내요 (구독 방식은 사용량에서 차감, API 방식은 클립 100개에 대략 0.3~0.6달러).
+- 구독 연결 프로그램은 PC 환경 변수에 `ANTHROPIC_API_KEY`가 있어도 빼고 Claude Code를 실행해서, 항상 로그인한 구독으로 돌아갑니다.
 - 구독 방식은 지금 Windows만 됩니다. Mac에서는 API 방식을 쓰세요.
 - 구독 방식은 구독 요금제의 사용 한도 안에서 돌아갑니다. Opus로 프레임을 많이 보내면 한도에 빨리 닿을 수 있어요.
 - API 방식 대략의 비용: Claude Opus 5.5로 프레임 40장 컨펌 한 번에 0.3~0.6달러, 자막 300줄 맞춤법 검사에 0.05~0.2달러. Sonnet 5.5는 절반, Haiku 5.5는 훨씬 저렴합니다 (설정 탭에서 모델 변경).
@@ -127,6 +131,8 @@ premiere-plugin/
     lib/claude.js      맞춤법·컨펌 프롬프트와 응답 형식, API 방식 호출
     lib/bridge.js      구독 방식: 구독 연결 프로그램과 주고받기
     lib/premiere.js    프리미어 UXP API (프레임 내보내기, 마커, 재생헤드, 그래픽 텍스트)
+    lib/textvalue.js   그래픽 글자 꺼내기 (속성 값, 레이어 이름, 클립 이름)
+    lib/ocr.js         화면 받아 적기: 장면 고르기, 겹친 그래픽 글자를 클립별로 나누기
     lib/naver.js       네이버 맞춤법 검사기 (루트의 spellcheck.py를 옮긴 것)
     lib/srt.js         SRT·VTT·TXT 읽기/쓰기 (루트의 srt_io.py와 같은 규칙)
     lib/…              비교, 프레임 시점, 리포트, 저장소

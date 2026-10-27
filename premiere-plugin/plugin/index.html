@@ -25,9 +25,12 @@
       <div class="label">1. 검사할 자막 불러오기</div>
       <div class="buttons">
         <button id="btnReadTimeline">타임라인 그래픽 텍스트 읽기</button>
+        <button id="btnReadScreen">화면 보고 받아 적기 (Claude)</button>
         <button id="btnOpenFile">자막 파일 열기 (SRT·VTT·TXT)</button>
+        <button id="btnReadCancel" style="display:none">멈추기</button>
       </div>
-      <div class="hint" id="sourceLine">프리미어 캡션 자막은 텍스트 패널 ··· 메뉴의 'SRT 파일로 내보내기'로 저장한 뒤 열어 주세요.</div>
+      <div class="msg" id="readMsg"></div>
+      <div class="hint" id="sourceLine">그래픽 자막(텍스트 패널의 그래픽 탭)은 '타임라인 그래픽 텍스트 읽기'. 프리미어가 글자를 알려 주지 않는 클립은 '화면 보고 받아 적기'로 Claude가 화면을 보고 읽어요. 캡션 자막은 텍스트 패널 ··· 메뉴의 'SRT 파일로 내보내기'로 저장한 뒤 열어 주세요.</div>
     </div>
 
     <div class="box">
@@ -35,7 +38,7 @@
       <div class="field">
         <span>검사 엔진</span>
         <select id="engine">
-          <option value="claude">Claude (문맥까지 보고 고침 · 유료)</option>
+          <option value="claude">Claude (문맥까지 보고 고침)</option>
           <option value="naver">네이버 맞춤법 검사기 (무료 · 막힐 수 있음)</option>
         </select>
       </div>

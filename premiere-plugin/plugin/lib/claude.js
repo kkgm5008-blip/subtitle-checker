@@ -228,6 +228,70 @@ function normalizeFixes(result, batch) {
   return fixes;
 }
 
+/* ───────── 화면 보고 받아 적기 (그래픽 자막 글자 읽기) ───────── */
+
+const OCR_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["scenes"],
+  properties: {
+    scenes: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["scene", "blocks"],
+        properties: {
+          scene: { type: "integer", description: "장면 번호" },
+          blocks: { type: "array", items: { type: "string" }, description: "따로 떨어진 글자 상자마다 하나. 상자 안 줄바꿈은 \\n" },
+        },
+      },
+    },
+  },
+};
+
+const OCR_SYSTEM = `당신은 영상 자막을 받아 적는 속기사입니다. 각 이미지는 프리미어 시퀀스의 한 장면입니다. 편집하면서 얹은 글자(자막, 타이틀, 설명 그래픽, 이름표, 강조 문구)를 화면에 보이는 그대로 받아 적습니다.
+
+규칙:
+- 받아 적은 글로 맞춤법 검사를 할 것이므로 맞춤법·띄어쓰기·오타·문장부호를 절대 고치지 않습니다. 틀린 글자도 화면 그대로 적습니다.
+- 띄어쓰기도 화면 그대로입니다. 한 상자 안에서 줄이 바뀐 곳은 \\n으로 적습니다.
+- 위치나 디자인이 달라 따로 떨어진 글자 상자는 blocks에 따로 넣습니다. 한 상자는 한 항목입니다.
+- 촬영된 화면 속 글자(간판, 제품 포장, 옷의 글씨, 화면 녹화 속 메뉴 글자 등)와 이모지 그림은 넣지 않습니다.
+- 편집으로 얹은 글자가 없는 장면은 blocks를 빈 배열로 둡니다.
+- 흐리거나 가려져 읽기 어려운 글자는 보이는 만큼만 적고, 지어내지 않습니다.
+- 모든 장면을 scenes에 장면 번호와 함께 넣습니다.`;
+
+function ocrContent(shots) {
+  const content = [{ type: "text", text: `장면 ${shots.length}개입니다. 장면마다 편집으로 얹은 글자를 화면 그대로 받아 적어 주세요.` }];
+  shots.forEach((s, i) => {
+    content.push({ type: "text", text: `[장면 ${i + 1}] ${formatClock(s.time)}` });
+    content.push({ type: "image", source: { type: "base64", media_type: s.mediaType, data: s.data } });
+  });
+  return content;
+}
+
+/**
+ * @param {Array<{time:number, data:string, mediaType:string}>} p.shots base64 이미지
+ * @returns {Promise<{blocks:string[][], cost}>} shots와 같은 순서
+ */
+async function readScreenText(p, opts) {
+  const { result, cost } = await ask({
+    mode: p.mode, apiKey: p.apiKey, model: p.model, system: OCR_SYSTEM, schema: OCR_SCHEMA, effort: "medium", maxTokens: 16000,
+    content: ocrContent(p.shots),
+  }, opts);
+  return { blocks: normalizeScenes(result, p.shots.length), cost };
+}
+
+function normalizeScenes(result, n) {
+  const out = Array.from({ length: n }, () => []);
+  for (const sc of (result && result.scenes) || []) {
+    const k = +sc.scene - 1;
+    if (!(k >= 0 && k < n) || !Array.isArray(sc.blocks)) continue;
+    out[k] = sc.blocks.map(b => String(b == null ? "" : b).replace(/\\n/g, "\n").trim()).filter(Boolean);
+  }
+  return out;
+}
+
 /* ───────── 영상 컨펌: 밤샘 콘텐츠 컴퍼니 검수팀 리뷰 ───────── */
 
 const VERDICTS = ["컨펌", "수정 후 컨펌", "재작업 필요"];
@@ -386,5 +450,6 @@ async function ping({ mode, apiKey, model }, opts) {
 module.exports = {
   MODELS, DEFAULT_MODEL, ClaudeError, buildRequest, send, readJson, usageCost,
   SPELL_TYPES, SPELL_SCHEMA, batchSegments, spellPrompt, checkSpelling, normalizeFixes,
+  OCR_SCHEMA, readScreenText, normalizeScenes,
   VERDICTS, SEVERITIES, CATEGORIES, TEAMS, CONFIRM_SCHEMA, confirmContent, reviewVideo, normalizeReview, ping,
 };

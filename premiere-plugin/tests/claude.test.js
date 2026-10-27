@@ -43,6 +43,7 @@ function assertStrictSchema(schema, where = "root") {
 test("스키마가 구조화 출력 제한을 지킴", () => {
   assertStrictSchema(claude.SPELL_SCHEMA);
   assertStrictSchema(claude.CONFIRM_SCHEMA);
+  assertStrictSchema(claude.OCR_SCHEMA);
 });
 
 test("요청 모양: 헤더, 모델, 폴백, 출력 형식", () => {
@@ -128,6 +129,22 @@ test("컨펌: 프레임 라벨·이미지 순서, 결과 정리", async () => {
   assert.deepEqual(r.issues[2].alternatives, []);
   assert.equal(r.issues[0].frame, 0);
   assert.equal(r.issues[2].frame, 1);
+});
+
+test("화면 받아 적기: 장면 라벨·이미지, 결과 정리", async () => {
+  const calls = [];
+  const fetch = fakeFetch([{ status: 200, body: reply({ scenes: [{ scene: 2, blocks: ["둘째 장면", "  ", "윗줄\\n아랫줄"] }, { scene: 1, blocks: [] }, { scene: 9, blocks: ["없는 장면"] }] }) }], calls);
+  const shots = [{ time: 8.6, mediaType: "image/jpeg", data: "AAA" }, { time: 75, mediaType: "image/png", data: "BBB" }, { time: 80, mediaType: "image/jpeg", data: "CCC" }];
+  const res = await claude.readScreenText({ mode: "api", apiKey: "k", model: "claude-sonnet-5-5", shots }, { fetch });
+  assert.deepEqual(res.blocks, [[], ["둘째 장면", "윗줄\n아랫줄"], []]);
+  const body = calls[0].body;
+  assert.match(body.system, /절대 고치지 않습니다/);
+  assert.deepEqual(body.output_config.format.schema, claude.OCR_SCHEMA);
+  const content = body.messages[0].content;
+  assert.deepEqual(content.slice(1, 3).map(c => c.type), ["text", "image"]);
+  assert.equal(content[1].text, "[장면 1] 0:08.6");
+  assert.equal(content[4].source.media_type, "image/png");
+  assert.equal(content.filter(c => c.type === "image").length, 3);
 });
 
 test("오류: 거절, 길이 초과, 키 오류, 재시도", async () => {

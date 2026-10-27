@@ -9,7 +9,8 @@ const srt = lib("srt.js");
 const { diffChars } = lib("diff.js");
 const base64 = lib("base64.js");
 const sampling = lib("sampling.js");
-const { textOfValue, isTextComponent } = lib("textvalue.js");
+const { textOfValue, isTextComponent, textOfComponentName, textOfClipName } = lib("textvalue.js");
+const ocr = lib("ocr.js");
 const report = lib("report.js");
 const naver = lib("naver.js");
 const { utf8Decode } = lib("host.js");
@@ -110,6 +111,52 @@ test("그래픽 텍스트 값 읽기", () => {
   assert.ok(isTextComponent("AE.ADBE Text"));
   assert.ok(isTextComponent("AE.ADBE Capsule"));
   assert.ok(!isTextComponent("AE.ADBE Motion"));
+  // 앞에 이진 머리말이 붙은 JSON, 잘린 JSON
+  assert.equal(textOfValue("\u0000\u0000\u0003\u0012" + JSON.stringify({ mTextParam: { mStyleSheet: { a: 1 }, mText: "머리말 뒤\r\n둘째 줄" } }), "Source Text"), "머리말 뒤\n둘째 줄");
+  assert.equal(textOfValue('\u0004{"capPropTextRunCount":1,"textEditValue":"잘린 \\"따옴표\\" 글자","fontEditValue":["Ar', "x"), '잘린 "따옴표" 글자');
+  assert.equal(textOfValue("{웃음} 진짜?", "소스 텍스트"), "{웃음} 진짜?", "중괄호로 시작하는 자막");
+  assert.equal(textOfValue({ value: { value: "" } }, "Source Text"), "");
+});
+
+test("그래픽 글자: 효과 이름·클립 이름", () => {
+  assert.equal(textOfComponentName("텍스트(오늘은 브이로그)"), "오늘은 브이로그");
+  assert.equal(textOfComponentName("Text (Hello (world))"), "Hello (world)");
+  assert.equal(textOfComponentName("텍스트"), "");
+  assert.equal(textOfComponentName("텍스트(새 텍스트 레이어)"), "", "기본 레이어 이름");
+  assert.equal(textOfComponentName("모션"), "");
+  assert.equal(textOfClipName("코코의 하루"), "코코의 하루");
+  for (const generic of ["그래픽", "Graphic", "그래픽 2", "텍스트(1)", "Lower Third.mogrt", "logo.png", ""]) {
+    assert.equal(textOfClipName(generic), "", generic);
+  }
+});
+
+test("화면 받아 적기: 장면 고르기 (겹침을 피함)", () => {
+  const clips = [{ start: 0, end: 20 }, { start: 8, end: 9 }, { start: 9.5, end: 13 }];
+  const shots = ocr.planShots(clips, [0, 1, 2]);
+  assert.deepEqual(shots.map(s => s.clip), [0, 1, 2]);
+  const [a, b, c] = shots.map(s => s.time);
+  assert.ok(!(a >= 8 && a < 9) && !(a >= 9.5 && a < 13), "긴 클립은 다른 그래픽이 없는 때: " + a);
+  assert.ok(b > 8 && b < 9 && c > 9.5 && c < 13);
+  // 아주 짧은 클립도 클립 안에서
+  const [s] = ocr.planShots([{ start: 5, end: 5.1 }], [0]);
+  assert.ok(s.time >= 5 && s.time < 5.1);
+});
+
+test("화면 받아 적기: 겹친 그래픽 글자를 클립별로 나눔", () => {
+  // 영상 내내 떠 있는 코너 제목(0) + 자막 셋. 받아 적을 때 제목이 한 글자씩 흔들려도 같은 글로 봄
+  const clips = [{ start: 0, end: 30 }, { start: 2, end: 4 }, { start: 5, end: 7 }, { start: 10, end: 12 }];
+  const shots = ocr.planShots(clips, [0, 1, 2, 3]);
+  const title = ["코코의 하루 EP.3", "코코의 하루 EP3", "코코의 하루 EP.3", "코코의하루 EP.3"];
+  const subs = { 1: "오늘은 산책 가는 날", 2: "그럼 안되요", 3: "다음에 또 봐요" };
+  const blocks = shots.map((s, f) => (s.clip === 0 ? [title[f]] : [title[f], subs[s.clip]]));
+  const texts = ocr.assignBlocks(clips, shots, blocks);
+  assert.deepEqual(texts, ["코코의 하루 EP.3", "오늘은 산책 가는 날", "그럼 안되요", "다음에 또 봐요"]);
+  // 이미 아는 글자는 빼고, 받아 적지 못한 장면은 빈 글자
+  const known = clips.map((c, i) => Object.assign({}, c, i === 0 ? { known: "코코의 하루 EP.3" } : {}));
+  const t2 = ocr.assignBlocks(known, shots.slice(1), [[title[1], subs[1]], [], [title[3], subs[3]]]);
+  assert.deepEqual(t2, ["", "오늘은 산책 가는 날", "", "다음에 또 봐요"]);
+  assert.ok(ocr.similarity("코코의 하루", "코코의하루") === 1);
+  assert.ok(ocr.similarity("그럼 안되요", "다음에 또 봐요") < 0.5);
 });
 
 test("맞춤법 리포트·마커·교정 자막", () => {

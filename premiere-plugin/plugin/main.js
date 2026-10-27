@@ -11,6 +11,7 @@ const sampling = require("./lib/sampling.js");
 const pr = require("./lib/premiere.js");
 const host = require("./lib/host.js");
 const bridge = require("./lib/bridge.js");
+const ocr = require("./lib/ocr.js");
 
 const DEFAULTS = {
   mode: "subscription", model: claude.DEFAULT_MODEL, engine: "claude", longEdge: 1280,
@@ -18,6 +19,10 @@ const DEFAULTS = {
   channel: { about: "", audience: "", tone: "" },
 };
 const MAX_PAYLOAD = 24 * 1024 * 1024; // base64 이미지 합계 (API 요청 한도 32MB 아래로)
+// 화면 받아 적기: Claude 요청 한 번에 보내는 장면 수 (구독 모드는 묶음마다 Claude Code를 새로 띄우므로 크게)
+const OCR_BATCH = { subscription: 30, api: 20 };
+const OCR_EDGE = 1280; // 화면 받아 적기 프레임 긴 변 (자막 글씨가 읽히는 크기)
+const ENGINE_LABEL = { subscription: "Claude (문맥까지 보고 고침 · 내 구독 사용량, 추가 비용 없음)", api: "Claude (문맥까지 보고 고침 · API 요금)" };
 const SEVERITY_CLASS = { 필수: "must", 권장: "should", 참고: "info" };
 const VERDICT_CLASS = { 컨펌: "ok", "수정 후 컨펌": "fix", "재작업 필요": "redo" };
 const VERDICT_ICON = { 컨펌: "✅", "수정 후 컨펌": "⚠️", "재작업 필요": "⛔" };
@@ -96,6 +101,9 @@ function updateKeyNotice() {
 function updateModeUI() {
   show("subBox", subscription());
   show("apiBox", !subscription());
+  const engine = $("engine").value || state.prefs.engine;
+  $("engine").innerHTML = `<option value="claude">${esc(ENGINE_LABEL[state.prefs.mode] || ENGINE_LABEL.api)}</option><option value="naver">네이버 맞춤법 검사기 (무료 · 막힐 수 있음)</option>`;
+  $("engine").value = engine;
   updateKeyNotice();
   updateEstimate();
 }
@@ -135,23 +143,121 @@ function setSegments(list, source) {
   updateEstimate();
 }
 
+const VIA_ORDER = ["값", "레이어 이름", "클립 이름", "화면"];
+
+function viaSummary(list) {
+  const n = {};
+  list.forEach(c => { n[c.via] = (n[c.via] || 0) + 1; });
+  return VIA_ORDER.filter(v => n[v]).map(v => `${v === "값" ? "그래픽 값" : v} ${n[v]}`).join(" · ");
+}
+
+const NO_GRAPHICS = "타임라인에서 텍스트 그래픽 클립을 찾지 못했어요. 캡션 자막이면 텍스트 패널 ··· 메뉴의 'SRT 파일로 내보내기'로 저장한 뒤 '자막 파일 열기'를 쓰세요. 그래픽인데도 안 보이면 설정 → 자가 진단 결과를 보내 주세요.";
+
+const clipSegment = c => ({ index: c.index, start: c.start, end: c.end, text: c.text, track: c.track, via: c.via });
+
+async function scanClips(sequence) {
+  const scan = await pr.scanTextClips(sequence, { onProgress: (t, n, clips) => say("readMsg", `그래픽 클립 찾는 중… 트랙 ${t}/${n} · 클립 ${clips}개 살펴봄`) });
+  return scan.clips;
+}
+
+/** 클립 중 targets의 글자를 화면을 보고 받아 적음. 바쁨 표시는 부른 쪽에서 */
+async function screenRead(sequence, clips, targets) {
+  await refreshSequence();
+  if (!state.seq) throw new Error("열려 있는 시퀀스가 없어요.");
+  const shots = ocr.planShots(clips, targets);
+  const size = sampling.frameSize(state.seq.width, state.seq.height, Math.min(OCR_EDGE, state.prefs.longEdge));
+  const raw = await pr.exportFrames(sequence, shots.map(s => s.time), size, {
+    onProgress: (i, n) => say("readMsg", `자막 장면 뽑는 중… ${i}/${n}`),
+    isCancelled: () => state.cancel,
+  });
+  const frames = raw.map(f => ({ time: f.time, mediaType: f.mediaType, data: base64.encode(f.bytes) }));
+  const blocks = [];
+  let failed = 0, cost = 0;
+  const per = OCR_BATCH[state.prefs.mode] || OCR_BATCH.api;
+  for (let b = 0; b < frames.length; b += per) {
+    if (state.cancel) throw new Error("취소했어요.");
+    const part = frames.slice(b, b + per);
+    say("readMsg", `${subscription() ? "Claude Code(내 구독)가" : "Claude가"} 화면 글자를 받아 적는 중… ${b + part.length}/${frames.length}장`);
+    try {
+      const res = await claude.readScreenText({ mode: state.prefs.mode, apiKey: state.apiKey, model: state.prefs.model, shots: part });
+      blocks.push(...res.blocks);
+      if (res.cost) cost += res.cost.dollars;
+    } catch (e) {
+      if ([401, 403, 404].includes(e.status) || (e.name === "BridgeError" && e.code !== "bad_json")) throw e;
+      part.forEach(() => blocks.push([]));
+      failed += part.length;
+    }
+  }
+  const known = clips.map((c, i) => ({ start: c.start, end: c.end, known: targets.includes(i) ? "" : c.text }));
+  const texts = ocr.assignBlocks(known, shots, blocks);
+  const read = targets.filter(i => texts[i]).length;
+  const out = clips.map((c, i) => (targets.includes(i) && texts[i] ? Object.assign({}, c, { text: texts[i], via: "화면" }) : c));
+  return { clips: out, read, failed, cost };
+}
+
+function finishRead(clips, note, kind) {
+  const list = clips.filter(c => c.text);
+  if (list.length) setSegments(list.map(clipSegment), `타임라인 그래픽 (${state.seq ? state.seq.name : "시퀀스"}) · ${viaSummary(list)}`);
+  say("readMsg", note, kind || (list.length ? "ok" : "err"));
+}
+
 async function readTimeline() {
   if (state.busy) return;
-  setBusy(true);
-  say("spellMsg", "타임라인의 그래픽 클립을 읽는 중…");
+  setBusy(true, "btnReadCancel");
+  say("readMsg", "타임라인의 그래픽 클립을 읽는 중…");
   try {
     const { sequence } = await pr.getActive();
-    const list = await pr.readTimelineTexts(sequence, (t, n) => say("spellMsg", `트랙 읽는 중 ${t}/${n}…`));
-    if (!list.length) {
-      say("spellMsg", "그래픽 텍스트를 찾지 못했어요. 캡션 자막이면 텍스트 패널에서 SRT로 내보낸 뒤 '자막 파일 열기'를 쓰거나, AI 컨펌으로 화면 속 글자를 검사하세요.", "err");
-      return;
+    let clips = await scanClips(sequence);
+    if (!clips.length) { say("readMsg", NO_GRAPHICS, "err"); return; }
+    const missing = clips.map((c, i) => i).filter(i => !clips[i].text);
+    const named = clips.filter(c => c.text && c.via !== "값").length;
+    let note = `그래픽 ${clips.length}개 중 ${clips.length - missing.length}개의 글자를 읽었어요.`;
+    if (missing.length && subscription()) {
+      // 구독 모드는 추가 비용이 없으니 못 읽은 클립은 바로 화면을 보고 받아 적음
+      say("readMsg", `${missing.length}개는 프리미어가 글자를 알려 주지 않아서 화면을 보고 받아 적을게요…`);
+      try {
+        const r = await screenRead(sequence, clips, missing);
+        clips = r.clips;
+        note = `그래픽 ${clips.length}개 중 ${clips.filter(c => c.text).length}개의 글자를 읽었어요 (화면에서 받아 적음 ${r.read}개).` +
+          (r.failed ? ` ${r.failed}장은 받아 적지 못했어요. '화면 보고 받아 적기'를 다시 눌러 보세요.` : "") +
+          (missing.length - r.read > r.failed ? " 글자가 안 보이는 그래픽은 뺐어요." : "");
+      } catch (e) {
+        // 받아 적기가 안 돼도 이름에서 읽은 것은 살림
+        finishRead(clips, `${note} 나머지 ${missing.length}개는 화면에서 받아 적지 못했어요: ${e.message}`, "err");
+        return;
+      }
+    } else if (missing.length) {
+      note += ` ${missing.length}개는 프리미어가 글자를 알려 주지 않아요. '화면 보고 받아 적기'를 누르면 Claude가 화면을 보고 읽어요.`;
     }
-    setSegments(list, `타임라인 그래픽 (${state.seq ? state.seq.name : "시퀀스"})`);
-    say("spellMsg", `그래픽 텍스트 ${list.length}개를 읽었어요.`, "ok");
+    if (named) note += " 레이어·클립 이름에서 읽은 글자는 실제 화면과 다를 수 있어요. 정확하게 하려면 '화면 보고 받아 적기'를 누르세요.";
+    finishRead(clips, note);
   } catch (e) {
-    say("spellMsg", e.message, "err");
+    say("readMsg", e.message, "err");
   } finally {
-    setBusy(false);
+    setBusy(false, "btnReadCancel");
+  }
+}
+
+/** 프리미어가 정확한 글자를 준 클립만 빼고 모두 화면을 보고 받아 적음 */
+async function readScreen() {
+  if (state.busy) return;
+  if (needKey("readMsg")) return;
+  setBusy(true, "btnReadCancel");
+  say("readMsg", "타임라인의 그래픽 클립을 찾는 중…");
+  try {
+    const { sequence } = await pr.getActive();
+    const clips = await scanClips(sequence);
+    if (!clips.length) { say("readMsg", NO_GRAPHICS, "err"); return; }
+    const targets = clips.map((c, i) => i).filter(i => clips[i].via !== "값");
+    if (!targets.length) { finishRead(clips, `그래픽 ${clips.length}개의 글자를 프리미어에서 정확히 읽었어요. 화면을 볼 필요가 없어요.`); return; }
+    const r = await screenRead(sequence, clips, targets);
+    finishRead(r.clips, `화면을 보고 ${r.read}개를 받아 적었어요 (그래픽 ${clips.length}개).` +
+      (r.failed ? ` ${r.failed}장은 받아 적지 못해서 이름에서 읽은 글자를 썼어요.` : "") +
+      (r.cost ? ` 비용 약 ${dollars(r.cost)}.` : ""));
+  } catch (e) {
+    say("readMsg", e.message, "err");
+  } finally {
+    setBusy(false, "btnReadCancel");
   }
 }
 
@@ -160,12 +266,12 @@ async function openFile() {
     const file = await host.openTextFile(["srt", "vtt", "txt"]);
     if (!file) return;
     const list = srt.parseSubtitleFile(file.name, file.text);
-    if (!list.length) { say("spellMsg", "파일에서 자막을 찾지 못했어요. 내용을 확인해 주세요.", "err"); return; }
+    if (!list.length) { say("readMsg", "파일에서 자막을 찾지 못했어요. 내용을 확인해 주세요.", "err"); return; }
     setSegments(list, file.name);
-    if (srt.looksGarbled(file.text)) say("spellMsg", "글자가 깨져 보여요. 파일을 UTF-8로 다시 저장해서 열어 주세요.", "err");
-    else say("spellMsg", `${list.length}개 자막을 불러왔어요.`, "ok");
+    if (srt.looksGarbled(file.text)) say("readMsg", "글자가 깨져 보여요. 파일을 UTF-8로 다시 저장해서 열어 주세요.", "err");
+    else say("readMsg", `${list.length}개 자막을 불러왔어요.`, "ok");
   } catch (e) {
-    say("spellMsg", e.message, "err");
+    say("readMsg", e.message, "err");
   }
 }
 
@@ -251,7 +357,7 @@ function renderSpell() {
   $("spellList").innerHTML = rows.map(r => {
     const time = r.seg.start != null ? `<button data-seek="${r.seg.start}">${srt.formatClock(r.seg.start)}</button>` : `<span class="chip">#${r.seg.index}</span>`;
     const kinds = [...new Set(r.issues.map(i => i.type))].map(k => `<span class="chip">${esc(k)}</span>`).join("");
-    const track = r.seg.track ? `<span class="chip">V${r.seg.track}</span>` : "";
+    const track = (r.seg.track ? `<span class="chip">V${r.seg.track}</span>` : "") + (r.seg.via && r.seg.via !== "값" ? `<span class="chip">${esc(r.seg.via)}</span>` : "");
     let body;
     if (r.error) body = `<div class="line">${esc(r.seg.text)}</div><div class="notes">⚠ ${esc(r.error)}</div>`;
     else if (!isChanged(r)) body = `<div class="line">${esc(r.seg.text)}</div>`;
@@ -516,7 +622,8 @@ const DIAG_PREFIX = report.AI_PREFIX + " 진단]";
 
 function diagReport(lines) {
   const passed = lines.filter(l => l.ok).length;
-  return [`자가 진단: ${lines.length}개 중 ${passed}개 통과`].concat(lines.map(l => `${l.ok ? "✅" : "❌"} ${l.name}${l.detail ? ` — ${l.detail}` : ""}`)).join("\n");
+  const extras = lines.filter(l => l.extra).map(l => l.extra);
+  return [`자가 진단: ${lines.length}개 중 ${passed}개 통과`].concat(lines.map(l => `${l.ok ? "✅" : "❌"} ${l.name}${l.detail ? ` — ${l.detail}` : ""}`), extras).join("\n");
 }
 
 function renderDiag(lines) {
@@ -531,7 +638,10 @@ async function runDiagnostics() {
   setBusy(true);
   const lines = [];
   const step = async (name, fn) => {
-    try { lines.push({ ok: true, name, detail: (await fn()) || "" }); }
+    try {
+      const r = await fn();
+      lines.push(Object.assign({ ok: true, name }, r && typeof r === "object" ? r : { detail: r || "" }));
+    }
     catch (e) { lines.push({ ok: false, name, detail: (e && e.message) || String(e) }); }
     renderDiag(lines);
   };
@@ -558,8 +668,15 @@ async function runDiagnostics() {
         return `${size.width}x${size.height} ${f.mediaType === "image/png" ? "PNG" : "JPG"} · ${Math.max(1, Math.round(f.bytes.byteLength / 1024))}KB`;
       });
       await step("그래픽 텍스트 읽기", async () => {
-        const list = await pr.readTimelineTexts(ctx.sequence);
-        return list.length ? `${list.length}개 · 첫 번째 "${list[0].text.replace(/\n/g, " ").slice(0, 30)}"` : "0개 (그래픽 자막이 없으면 정상)";
+        const scan = await pr.scanTextClips(ctx.sequence, { dump: 2 });
+        const clips = scan.clips, read = clips.filter(c => c.text);
+        const first = read.length ? ` · 첫 번째 "${read[0].text.replace(/\n/g, " ").slice(0, 30)}"` : "";
+        const missing = clips.length - read.length;
+        const dump = scan.dumps.map(d => d.join("\n")).join("\n");
+        return {
+          detail: `클립 ${scan.scanned}개 중 텍스트 그래픽 ${clips.length}개 · 글자 읽음 ${read.length}개${read.length ? ` (${viaSummary(read)})` : ""}${missing ? ` · 못 읽음 ${missing}개 (화면 보고 받아 적기로 읽음)` : ""}${first}`,
+          extra: dump ? `[${clips.length ? "텍스트 그래픽" : "위쪽 트랙 클립"} 구조]\n${dump}` : "",
+        };
       });
       await step("마커 만들기·지우기", async () => {
         await pr.addMarkers(ctx.project, ctx.sequence, [{ name: DIAG_PREFIX + " 테스트", start: pos, duration: 0, comments: "자가 진단용 마커", color: "GREEN" }]);
@@ -613,6 +730,8 @@ function bind() {
   $("btnGoSettings").addEventListener("click", () => showTab("settings"));
 
   $("btnReadTimeline").addEventListener("click", readTimeline);
+  $("btnReadScreen").addEventListener("click", readScreen);
+  $("btnReadCancel").addEventListener("click", () => { state.cancel = true; });
   $("btnOpenFile").addEventListener("click", openFile);
   $("btnSpellRun").addEventListener("click", runSpell);
   $("btnSpellCancel").addEventListener("click", () => { state.cancel = true; });

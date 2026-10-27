@@ -40,6 +40,10 @@ function New-ClaudeProcessInfo([string]$exe, [string[]]$arguments, [string]$work
     $psi.Arguments = ($arguments -join ' ')
   }
   $psi.WorkingDirectory = $workDir
+  # API 키가 환경 변수에 있으면 Claude Code가 구독 대신 API 요금으로 돌기 때문에 빼고 실행
+  foreach ($name in @("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")) {
+    if ($psi.EnvironmentVariables.ContainsKey($name)) { $psi.EnvironmentVariables.Remove($name) }
+  }
   $psi.UseShellExecute = $false
   $psi.CreateNoWindow = $true
   $psi.RedirectStandardInput = $true

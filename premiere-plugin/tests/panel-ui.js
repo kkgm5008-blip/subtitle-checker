@@ -21,25 +21,39 @@ let markers = [];
 const temp = new Map();
 const tick = s => ({ seconds: s, ticks: String(Math.round(s * 254016000000)) });
 
-function component(match, params) {
+function component(match, params, display = "") {
   return {
     getMatchName: async () => match,
+    getDisplayName: async () => display,
     getParamCount: () => params.length,
-    getParam: i => ({ displayName: params[i][0], getStartValue: async () => params[i][1] }),
+    // 프리미어 26처럼 '소스 텍스트'가 null이면 시간값도 비어 있음
+    getParam: i => ({ displayName: params[i][0], getStartValue: async () => params[i][1], getValueAtTime: async () => (params[i][1] == null ? "" : params[i][1]) }),
   };
 }
-function clip(start, end, comps) {
+function clip(start, end, comps, name = "clip") {
   return {
-    getStartTime: async () => tick(start), getEndTime: async () => tick(end), getName: async () => "clip",
+    getStartTime: async () => tick(start), getEndTime: async () => tick(end), getName: async () => name, getInPoint: async () => tick(0),
     getComponentChain: async () => ({ getComponentCount: () => comps.length, getComponentAtIndex: i => comps[i] }),
   };
 }
+const nativeText = (display, name, start, end) => clip(start, end, [component("AE.ADBE Motion", []), component("AE.ADBE Text", [["소스 텍스트", null], ["글꼴", { value: { value: "Pretendard" } }]], display)], name);
+// 화면에 실제로 보이는 글자 (가짜 Claude가 받아 적음)
+const SCREEN = [
+  { start: 2, end: 4, text: "오늘은 브이로그를 찍어볼께요" },
+  { start: 5, end: 7, text: "구독 좋아요" },
+  { start: 8, end: 9, text: "다음에 또 봐요!" },
+  { start: 11, end: 13, text: "그럼 안되요" },
+  { start: 0, end: 20, text: "코코의 하루" },
+];
 const tracks = [
   [clip(0, 10, [component("AE.ADBE Motion", [["Position", 1]])])],
   [
-    clip(2, 4, [component("AE.ADBE Motion", []), component("AE.ADBE Text", [["Source Text", { value: { value: JSON.stringify({ textEditValue: "오늘은 브이로그를 찍어볼께요" }) } }], ["Font", { value: { value: "Arial" } }]])]),
+    clip(2, 4, [component("AE.ADBE Motion", []), component("AE.ADBE Text", [["Source Text", { value: { value: "\u0000\u0003" + JSON.stringify({ mTextParam: { textEditValue: "오늘은 브이로그를 찍어볼께요" } }) } }], ["Font", { value: { value: "Arial" } }]])]),
     clip(5, 7, [component("AE.ADBE Capsule", [["Text", { getText: () => "구독 좋아요" }]])]),
+    nativeText("텍스트(다음에 또 봐요)", "그래픽", 8, 9),
+    nativeText("텍스트", "그래픽", 11, 13),
   ],
+  [nativeText("텍스트", "코코의 하루", 0, 20)],
 ];
 const sequence = {
   name: "브이로그 01",
@@ -137,6 +151,15 @@ function spellAnswer(text) {
 const REVIEW = { verdict: "수정 후 컨펌", summary: "전체 흐름은 좋아요. 자막 오타 하나만 고치면 됩니다.", good_points: ["컷 호흡이 좋아요"],
   issues: [{ time: 15.5, team: "검수팀", category: "맞춤법", severity: "필수", current: "볼께요", suggestion: "볼게요", alternatives: [], detail: "‘-ㄹ게요’가 표준" },
     { time: 22.5, team: "카피라이팅팀", category: "멘트", severity: "참고", current: "다음에 또 봐요", suggestion: "다음 편: 코코 첫 수영", alternatives: ["구독하면 코코가 웃어요", "다음 주에 또 만나요"], detail: "마지막 자막에 다음 편 예고" }] };
+/** "[장면 k] 0:08.6" 라벨을 읽어 그때 화면에 보이는 글자를 돌려줌 */
+function ocrAnswer(text) {
+  const scenes = [];
+  for (const m of text.matchAll(/\[장면 (\d+)\] (\d+):(\d+(?:\.\d)?)/g)) {
+    const t = +m[2] * 60 + +m[3];
+    scenes.push({ scene: +m[1], blocks: SCREEN.filter(x => x.start <= t && t < x.end).map(x => x.text) });
+  }
+  return { scenes };
+}
 const reply = (status, obj) => ({ ok: status === 200, status, headers: { get: () => null }, text: async () => JSON.stringify(obj), json: async () => obj });
 let bridgeUp = true;
 global.fetch = async (url, init) => {
@@ -149,7 +172,7 @@ global.fetch = async (url, init) => {
     if (p === "/jobs") return reply(200, { ok: true, id: "j" + bridgeCalls.length });
     if (/\/files\//.test(p)) { assert.equal(init.body, "/9j/AQID"); return reply(200, { ok: true }); }
     const job = JSON.parse(init.body);
-    const out = /"fixes"/.test(job.prompt) ? spellAnswer(job.prompt) : /"verdict"/.test(job.prompt) ? REVIEW : { ok: true };
+    const out = /"fixes"/.test(job.prompt) ? spellAnswer(job.prompt) : /"verdict"/.test(job.prompt) ? REVIEW : /"scenes"/.test(job.prompt) ? ocrAnswer(job.prompt) : { ok: true };
     return reply(200, { type: "result", subtype: "success", is_error: false, result: JSON.stringify(out) });
   }
   const body = JSON.parse(init.body);
@@ -159,6 +182,8 @@ global.fetch = async (url, init) => {
   let out;
   if (props.fixes) {
     out = spellAnswer(body.messages[0].content[0].text);
+  } else if (props.scenes) {
+    out = ocrAnswer(body.messages[0].content.filter(c => c.type === "text").map(c => c.text).join("\n"));
   } else if (props.verdict) {
     const imgs = body.messages[0].content.filter(c => c.type === "image");
     assert.ok(imgs.length > 0 && imgs.every(i => i.source.media_type === "image/jpeg" && i.source.data === "/9j/AQID"));
@@ -293,10 +318,35 @@ async function until(pred, what) {
   click("btnSpellReport"); await until(() => saved.length === 2, "report saved");
   assert.match(saved[1].text, /자막 맞춤법 검사 리포트/);
 
-  // read timeline graphics
-  click("btnReadTimeline"); await until(() => /그래픽 텍스트 2개/.test($("spellMsg").textContent), "timeline read");
-  console.log("timeline:", $("sourceLine").textContent);
+  // read timeline graphics (API 모드: 못 읽은 1개는 버튼으로 안내만, 돈이 드니 자동으로 받아 적지 않음)
+  assert.match($("engine").options[0].textContent, /API 요금/);
+  const callsBefore = apiCalls.length;
+  click("btnReadTimeline"); await until(() => /그래픽 5개 중 4개의 글자를 읽었어요/.test($("readMsg").textContent), "timeline read");
+  console.log("timeline:", $("sourceLine").textContent, "|", $("readMsg").textContent);
+  assert.match($("readMsg").textContent, /1개는 프리미어가 글자를 알려 주지 않아요/);
+  assert.match($("sourceLine").textContent, /그래픽 값 2 · 레이어 이름 1 · 클립 이름 1 · 4개/);
+  assert.equal(apiCalls.length, callsBefore);
   assert.equal($("spellResult").style.display, "none");
+  // 화면 보고 받아 적기: 정확한 값이 없는 3개(레이어 이름·클립 이름·못 읽음)를 화면에서
+  log.exports.length = 0;
+  click("btnReadScreen"); await until(() => /화면을 보고 3개를 받아 적었어요/.test($("readMsg").textContent), "screen read");
+  console.log("screen:", $("sourceLine").textContent, "|", $("readMsg").textContent, "| shots:", log.exports.map(e => e.t).join(","));
+  assert.equal(log.exports.length, 3);
+  assert.ok(log.exports.every(e => e.w === 1280));
+  const ocrReq = apiCalls.at(-1).body;
+  assert.ok(ocrReq.output_config.format.schema.properties.scenes);
+  assert.equal(ocrReq.messages[0].content.filter(c => c.type === "image").length, 3);
+  assert.match($("sourceLine").textContent, /그래픽 값 2 · 화면 3 · 5개/);
+  assert.match($("readMsg").textContent, /비용 약/);
+  click("btnSpellRun"); await until(() => $("spellResult").style.display === "" && !$("btnSpellRun").disabled, "spell after screen read");
+  const spellText = apiCalls.filter(c => c.body.output_config.format.schema.properties.fixes).at(-1).body.messages[0].content[0].text;
+  assert.match(spellText, /"다음에 또 봐요!"/, "screen text, not stale layer name");
+  assert.match(spellText, /"그럼 안되요"/);
+  assert.match(spellText, /"코코의 하루"/);
+  assert.equal((spellText.match(/코코의 하루/g) || []).length, 1, "persistent title not glued onto every subtitle");
+  assert.match($("spellList").innerHTML, /<span class="chip">화면<\/span>/);
+  console.log("spellSummary (graphics):", $("spellSummary").textContent);
+  assert.match($("spellSummary").textContent, /수정 제안 2개/);
 
   // confirm: in/out range, per segment
   change("range", "inout"); change("interval", "5"); change("maxFrames", "20");
@@ -345,7 +395,9 @@ async function until(pred, what) {
   assert.match($("diagText").value, /자가 진단: 7개 중 7개 통과/);
   assert.match($("diagText").value, /프리미어 premierepro 26\.5\.0 · 플러그인 1\.\d+\.\d+/);
   assert.match($("diagText").value, /프레임 1장 내보내기 — 1280x720 JPG/);
-  assert.match($("diagText").value, /그래픽 텍스트 읽기 — 2개/);
+  assert.match($("diagText").value, /그래픽 텍스트 읽기 — 클립 6개 중 텍스트 그래픽 5개 · 글자 읽음 4개 \(그래픽 값 2 · 레이어 이름 1 · 클립 이름 1\) · 못 읽음 1개/);
+  assert.match($("diagText").value, /\[텍스트 그래픽 구조\]\n클립 "/);
+  assert.match($("diagText").value, /효과 2: AE\.ADBE Text \/ "텍스트"\n    속성 1 "소스 텍스트": null \/ 시간값 문자열 0자 ""/);
   assert.equal(markers.length, marksBefore, "test marker removed");
   // 구독 모드에서 연결 프로그램이 꺼져 있으면 그 단계만 실패
   change("mode", "subscription"); bridgeUp = false;
@@ -353,6 +405,20 @@ async function until(pred, what) {
   assert.match($("diagText").value, /7개 중 6개 통과/);
   assert.match($("diagText").value, /❌ 구독 연결 프로그램 — 구독 연결 프로그램이 꺼져 있어요/);
   click("btnDiagSave"); await until(() => saved.some(x => x.name === "자가진단_결과.txt"), "diag saved");
+  bridgeUp = true;
+
+  // 구독 모드: 못 읽은 그래픽은 타임라인 읽기에서 바로 화면을 보고 받아 적음 (추가 비용 없음)
+  assert.match($("engine").options[0].textContent, /내 구독 사용량/);
+  const runsBefore = bridgeCalls.filter(c => c.path.endsWith("/run")).length;
+  click("btnReadTimeline"); await until(() => /화면에서 받아 적음 1개/.test($("readMsg").textContent), "timeline read (sub)");
+  console.log("timeline (sub):", $("readMsg").textContent);
+  assert.equal(bridgeCalls.filter(c => c.path.endsWith("/run")).length, runsBefore + 1);
+  assert.match($("sourceLine").textContent, /그래픽 값 2 · 레이어 이름 1 · 클립 이름 1 · 화면 1 · 5개/);
+  assert.equal($("btnReadCancel").style.display, "none");
+  // 연결 프로그램이 꺼져 있어도 이름에서 읽은 것은 남김
+  bridgeUp = false;
+  click("btnReadTimeline"); await until(() => /받아 적지 못했어요: 구독 연결 프로그램이 꺼져/.test($("readMsg").textContent), "timeline read (bridge down)");
+  assert.match($("sourceLine").textContent, /4개/);
   bridgeUp = true; change("mode", "api");
 
   // prefs persisted
