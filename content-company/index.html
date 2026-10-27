@@ -412,7 +412,7 @@ textarea:focus,input:focus,select:focus{border-color:var(--lamp);outline:none}
       </div>
 
       <div class="pane" data-pane="folders" style="padding-top:12px" hidden>
-        <p class="note" style="margin-top:0">지식관리팀(팀장 신가온)이 PC의 작업 폴더를 고객사별로 정리하는 안을 만들어요. 파일을 열지 않고 폴더·파일 이름과 크기, 날짜만 봐요. 정리안을 확인한 뒤 받는 정리 파일을 PC에서 실행해야 옮겨지고, 지우는 파일은 없어요.</p>
+        <p class="note" style="margin-top:0">지식관리팀(팀장 신가온)이 PC의 작업 폴더를 고객사별로 정리하는 안을 만들어요. 파일을 열지 않고 폴더·파일 이름과 크기, 날짜만 봐요. 정리안을 확인한 뒤 받는 정리 파일을 PC에서 실행해야 옮겨지고, 고른 폴더 안에서만 옮기며 지우는 파일은 없어요.</p>
         <div class="fo-pick"><button class="btn primary small" id="btnPickFolder" type="button">정리할 폴더 고르기</button><span class="note" id="foPicked">고객사 폴더들이 들어 있는 상위 폴더를 고르세요 (PC 브라우저나 Claude 데스크톱 앱에서)</span></div>
         <p class="note" style="margin-top:0">브라우저가 '파일을 업로드할까요?'라고 물어도 파일은 어디에도 올라가지 않아요. 이름과 크기만 이 화면에서 읽어서 지식관리팀에게 보내요.</p>
         <input type="file" id="folderInput" webkitdirectory multiple hidden>
@@ -462,6 +462,8 @@ $script:Created = New-Object System.Collections.ArrayList
 function Full([string]$base, [string]$rel) { return [System.IO.Path]::Combine($base, $rel.Replace('/', $Sep)) }
 function Rel([string]$p) { return $p.Substring($script:RootPath.Length).TrimStart('\', '/').Replace('\', '/') }
 function Exists([string]$p) { return ([System.IO.Directory]::Exists($p) -or [System.IO.File]::Exists($p)) }
+# 고른 폴더 안의 경로인지 (.. 같은 것으로 밖으로 나가지 못하게)
+function Inside([string]$p) { return [System.IO.Path]::GetFullPath($p).StartsWith($script:RootPath.TrimEnd('\', '/') + $Sep, [StringComparison]::OrdinalIgnoreCase) }
 function Ask([string]$q, [string]$auto) { if ($Yes) { return $auto } return [string](Read-Host $q) }
 function Wait-Close { if (-not $Yes) { [void](Read-Host "엔터를 누르면 창이 닫혀요") } }
 
@@ -556,6 +558,12 @@ try {
   foreach ($m in $order) {
     $src = Full $found $m.from
     $dst = Full $found $m.to
+    if (-not (Inside $src) -or -not (Inside $dst)) {
+      $failed++
+      [void]$log.Add("고른 폴더 밖이라 건너뜀: " + $m.from + "  ->  " + $m.to)
+      Write-Host ("  고른 폴더 밖이라 건너뜀: " + $m.from) -ForegroundColor Yellow
+      continue
+    }
     $isDir = [System.IO.Directory]::Exists($src)
     if (-not $isDir -and -not [System.IO.File]::Exists($src)) {
       $missing++
@@ -644,6 +652,7 @@ $Sep = [string][System.IO.Path]::DirectorySeparatorChar
 $Data = ([System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__UNDO_DATA_B64__'))) | ConvertFrom-Json
 $Root = $PSScriptRoot
 function Full([string]$rel) { return [System.IO.Path]::Combine($Root, $rel.Replace('/', $Sep)) }
+function Inside([string]$p) { return [System.IO.Path]::GetFullPath($p).StartsWith($Root.TrimEnd('\', '/') + $Sep, [StringComparison]::OrdinalIgnoreCase) }
 function Exists([string]$p) { return ([System.IO.Directory]::Exists($p) -or [System.IO.File]::Exists($p)) }
 function Wait-Close { if (-not $Yes) { [void](Read-Host "엔터를 누르면 창이 닫혀요") } }
 function Free-Name([string]$path, [bool]$isDir) {
@@ -670,6 +679,7 @@ try {
   foreach ($m in $items) {
     $src = Full $m.to
     $dst = Full $m.from
+    if (-not (Inside $src) -or -not (Inside $dst)) { Write-Host ("  이 폴더 밖이라 건너뜀: " + $m.to) -ForegroundColor Yellow; $failed++; continue }
     $isDir = [System.IO.Directory]::Exists($src)
     if (-not $isDir -and -not [System.IO.File]::Exists($src)) { Write-Host ("  없어서 건너뜀: " + $m.to) -ForegroundColor DarkYellow; continue }
     try {
@@ -686,6 +696,7 @@ try {
   # 정리할 때 새로 만든 폴더가 비었으면 지움
   foreach ($d in @(@($Data.created) | Sort-Object -Property Length -Descending)) {
     $p = Full $d
+    if (-not (Inside $p)) { continue }
     try { if ([System.IO.Directory]::Exists($p) -and @([System.IO.Directory]::GetFileSystemEntries($p)).Count -eq 0) { [System.IO.Directory]::Delete($p) } } catch { }
   }
   Write-Host ("다 됐어요. 되돌림 " + $ok + "개 · 못 되돌림 " + $failed + "개") -ForegroundColor Green
@@ -3232,7 +3243,7 @@ function renderFolders() {
       <li>폴더를 고르는 창에서 <b>'${esc(fo.scan.root)}'</b> 폴더를 고르기</li>
       <li>목록을 확인하고 <b>Y</b> + 엔터. 끝나면 그 폴더에 기록과 <b>되돌리기 파일</b>이 생겨요</li>
     </ol>
-    <p class="note">파일을 지우지 않고 위치만 옮겨요. 프리미어 프로젝트가 쓰던 파일이 옮겨지면, 프로젝트를 열 때 '미디어 연결'에서 새 위치를 한 번 찾아 주면 돼요. 정리 전에 프리미어를 닫아 두세요.</p>
+    <p class="note">고른 '${esc(fo.scan.root)}' 폴더 안에서만 옮기고, 새 폴더도 그 안에 만들어요. 파일을 지우지 않고 위치만 옮겨요. 프리미어 프로젝트가 쓰던 파일이 옮겨지면, 프로젝트를 열 때 '미디어 연결'에서 새 위치를 한 번 찾아 주면 돼요. 정리 전에 프리미어를 닫아 두세요.</p>
   </div>`;
   box.querySelectorAll("[data-mv]").forEach(c => (c.onchange = () => { const i = +c.dataset.mv; if (c.checked) fo.off.delete(i); else fo.off.add(i); renderFolders(); }));
   $("foAll").onclick = () => { if (on === fo.moves.length) fo.moves.forEach((m, i) => fo.off.add(i)); else fo.off.clear(); renderFolders(); };
