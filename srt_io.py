@@ -11,11 +11,19 @@ from typing import List, Optional
 
 
 @dataclass
+class Word:
+    start: float  # 초 단위
+    end: float
+    text: str
+
+
+@dataclass
 class Segment:
     index: int
     start: Optional[float]  # 초 단위. 타임코드가 없는 일반 텍스트면 None
     end: Optional[float]
     text: str
+    words: Optional[List[Word]] = None  # 음성 인식으로 만든 경우 단어별 타임코드 (러프 컷에 사용)
 
 
 _TIME_RE = re.compile(

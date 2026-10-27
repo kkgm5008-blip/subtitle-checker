@@ -6,7 +6,7 @@ faster-whisper를 사용합니다 (CPU에서도 동작, GPU 있으면 더 빠름
 
 from typing import List, Optional
 
-from srt_io import Segment
+from srt_io import Segment, Word
 
 _MODEL_CACHE = {}
 
@@ -40,6 +40,7 @@ def transcribe_to_segments(
         language=language,
         vad_filter=True,
         beam_size=5,
+        word_timestamps=True,  # 러프 컷에서 무음/군더더기를 단어 단위로 자르기 위해 필요
     )
 
     total = getattr(info, "duration", None)
@@ -48,7 +49,12 @@ def transcribe_to_segments(
         text = seg.text.strip()
         if not text:
             continue
-        segments.append(Segment(index=i, start=seg.start, end=seg.end, text=text))
+        words = [
+            Word(start=w.start, end=w.end, text=w.word.strip())
+            for w in (seg.words or [])
+            if w.word.strip()
+        ]
+        segments.append(Segment(index=i, start=seg.start, end=seg.end, text=text, words=words or None))
         if progress_cb and total:
             progress_cb(seg.end, total)
 
