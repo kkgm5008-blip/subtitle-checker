@@ -41,6 +41,8 @@ input[type="checkbox"] { margin-right: 6px; }
 .tab { background-color: transparent; border: 0; border-bottom: 2px solid transparent; border-radius: 0; margin: 0 4px -1px 0; padding: 6px 10px; color: #9a9a9a; font-weight: 600; }
 .tab.on { color: #fff; border-bottom-color: #2f7de1; }
 
+.ver { font-size: 11px; font-weight: 400; color: #8a8a8a; }
+.notice.err { background-color: #3d2222; border-color: #8a3a3a; color: #ffc9c9; white-space: pre-wrap; }
 .notice { background-color: #3d3420; border: 1px solid #7a6330; color: #f3dfa8; padding: 6px 8px; border-radius: 4px; margin-bottom: 10px; }
 
 .box { border: 1px solid #3c3c3c; border-radius: 6px; padding: 10px; margin-bottom: 10px; background-color: #282828; }

@@ -7,7 +7,7 @@
 </head>
 <body>
   <header class="top">
-    <div class="title">자막 맞춤법 · AI 컨펌</div>
+    <div class="title">자막 맞춤법 · AI 컨펌 <span class="ver" id="version"></span></div>
     <div class="seqline"><span id="seqLine">시퀀스 확인 중…</span> <button class="link" id="btnRefresh">새로고침</button></div>
   </header>
 
@@ -17,6 +17,7 @@
     <button class="tab" data-tab="settings">설정</button>
   </nav>
 
+  <div class="notice err" id="errorBox" style="display:none"></div>
   <div class="notice" id="keyNotice" style="display:none">Claude를 쓰려면 <button class="link" id="btnGoSettings">설정 탭</button>에서 Anthropic API 키를 넣어 주세요.</div>
 
   <!-- 맞춤법 -->

@@ -425,5 +425,15 @@ async function until(pred, what) {
   const prefs = JSON.parse(window.localStorage.getItem("subtitle-checker.prefs"));
   assert.equal(prefs.range, "inout");
   assert.equal(prefs.interval, 5);
+  assert.equal($("version").textContent, "v1.3.1", "version shown in header");
+  assert.equal($("errorBox").style.display, "none", "no unexpected errors: " + $("errorBox").textContent);
+  // 버튼 처리 중 예상 못 한 오류는 패널 위쪽에 그대로 보임
+  const srtLib = require(path.join(PLUGIN, "lib", "srt.js"));
+  const origClock = srtLib.formatClock;
+  srtLib.formatClock = () => { throw new TypeError("formatClock 테스트 오류"); };
+  change("range", "all"); await until(() => $("errorBox").style.display === "", "error box");
+  srtLib.formatClock = origClock;
+  console.log("errorBox:", $("errorBox").textContent);
+  assert.match($("errorBox").textContent, /^⚠ range: formatClock 테스트 오류\n이 문구를 그대로 알려 주세요\./);
   console.log("ALL UI CHECKS PASSED");
 })().catch(e => { console.error("FAIL:", e); process.exit(1); });

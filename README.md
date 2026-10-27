@@ -17,7 +17,7 @@
 프리미어 안에서 자막 맞춤법을 검사하고, Claude가 시퀀스 화면을 보고 컨펌(검수)해 주는
 패널입니다. 설치와 사용법은 [`premiere-plugin/README.md`](premiere-plugin/README.md)를 보세요.
 
-- 설치 파일: `premiere-plugin/dist/subtitle-checker-premiere-1.3.0-windows.zip` (Mac은 `.ccx`)
+- 설치 파일: `premiere-plugin/dist/subtitle-checker-premiere-1.3.1-windows.zip` (Mac은 `.ccx`)
 - 내 Claude 구독(PC의 Claude Code)으로 돌려서 추가 비용 없이 쓰거나, API 키로 쓸 수 있음
 - 자막(SRT/VTT/TXT, 타임라인 그래픽 텍스트) 맞춤법 검사 → 타임라인 마커, 교정된 SRT 저장
 - 프리미어가 그래픽 글자를 알려 주지 않으면 Claude가 화면을 보고 받아 적어서 검사

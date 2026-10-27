@@ -59,6 +59,30 @@ function savePrefs() {
   host.savePrefs(state.prefs);
 }
 
+/** 예상하지 못한 오류를 패널 위쪽에 그대로 보여 줌 (사용자가 읽어 주면 원인을 바로 찾을 수 있게) */
+function reportError(where, e) {
+  const msg = (e && (e.message || e.reason)) || String(e);
+  try {
+    const box = $("errorBox");
+    box.textContent = `⚠ ${where}: ${msg}\n이 문구를 그대로 알려 주세요.`;
+    box.style.display = "";
+  } catch (x) { /* 화면도 못 그리면 콘솔에만 */ }
+  try { console.error(where, e); } catch (x) { /* 콘솔 없음 */ }
+}
+
+/** select의 선택지를 새로 채움 (innerHTML 대신 요소를 만들어서) */
+function setOptions(select, options, value) {
+  while (select.firstChild) select.removeChild(select.firstChild);
+  for (const [v, label] of options) {
+    const o = document.createElement("option");
+    o.setAttribute("value", v);
+    o.textContent = label;
+    if (String(v) === String(value)) o.setAttribute("selected", "");
+    select.appendChild(o);
+  }
+  try { select.value = String(value); } catch (e) { /* selected 속성으로 충분 */ }
+}
+
 /** el에서 부모로 올라가며 attr이 있는 요소를 찾음 (UXP에 closest가 없을 수 있음) */
 function withAttr(el, attr, stop) {
   while (el && el !== stop) {
@@ -102,8 +126,7 @@ function updateModeUI() {
   show("subBox", subscription());
   show("apiBox", !subscription());
   const engine = $("engine").value || state.prefs.engine;
-  $("engine").innerHTML = `<option value="claude">${esc(ENGINE_LABEL[state.prefs.mode] || ENGINE_LABEL.api)}</option><option value="naver">네이버 맞춤법 검사기 (무료 · 막힐 수 있음)</option>`;
-  $("engine").value = engine;
+  setOptions($("engine"), [["claude", ENGINE_LABEL[state.prefs.mode] || ENGINE_LABEL.api], ["naver", "네이버 맞춤법 검사기 (무료 · 막힐 수 있음)"]], engine);
   updateKeyNotice();
   updateEstimate();
 }
@@ -711,9 +734,9 @@ async function saveDiagnostics() {
 
 function fillForm() {
   const p = state.prefs;
-  $("model").innerHTML = Object.keys(claude.MODELS).map(id => `<option value="${id}"${id === p.model ? " selected" : ""}>${esc(claude.MODELS[id].label)}</option>`).join("");
-  const set = (id, v) => { $(id).value = String(v); };
-  set("mode", p.mode); set("model", p.model); set("engine", p.engine); set("longEdge", p.longEdge);
+  setOptions($("model"), Object.keys(claude.MODELS).map(id => [id, claude.MODELS[id].label]), p.model);
+  const set = (id, v) => { try { $(id).value = String(v); } catch (e) { reportError(`설정 표시 (${id})`, e); } };
+  set("mode", p.mode); set("engine", p.engine); set("longEdge", p.longEdge);
   set("range", p.range); set("interval", p.interval); set("maxFrames", p.maxFrames); set("focus", p.focus);
   $("brief").value = p.brief || "";
   $("withSubs").checked = !!p.withSubs;
@@ -724,24 +747,35 @@ function fillForm() {
   if (state.apiKey) $("apiKey").value = state.apiKey;
 }
 
+const missing = [];
+
+/** 요소에 이벤트 연결. 처리 중 오류는 패널에 보여 주고, 요소가 없으면 모아 두었다가 알림 */
+function on(id, event, fn) {
+  const el = $(id);
+  if (!el) { missing.push(id); return; }
+  el.addEventListener(event, async ev => {
+    try { await fn(ev); } catch (e) { reportError(id, e); }
+  });
+}
+
 function bind() {
-  all(".tab").forEach(b => b.addEventListener("click", () => showTab(b.getAttribute("data-tab"))));
-  $("btnRefresh").addEventListener("click", refreshSequence);
-  $("btnGoSettings").addEventListener("click", () => showTab("settings"));
+  all(".tab").forEach(b => b.addEventListener("click", () => { try { showTab(b.getAttribute("data-tab")); } catch (e) { reportError("탭", e); } }));
+  on("btnRefresh", "click", refreshSequence);
+  on("btnGoSettings", "click", () => showTab("settings"));
 
-  $("btnReadTimeline").addEventListener("click", readTimeline);
-  $("btnReadScreen").addEventListener("click", readScreen);
-  $("btnReadCancel").addEventListener("click", () => { state.cancel = true; });
-  $("btnOpenFile").addEventListener("click", openFile);
-  $("btnSpellRun").addEventListener("click", runSpell);
-  $("btnSpellCancel").addEventListener("click", () => { state.cancel = true; });
-  $("onlyChanged").addEventListener("change", renderSpell);
-  $("btnSpellMarkers").addEventListener("click", spellMarkers);
-  $("btnSaveSrt").addEventListener("click", saveCorrected);
-  $("btnSpellReport").addEventListener("click", saveSpellReport);
-  $("engine").addEventListener("change", () => { state.prefs.engine = $("engine").value; savePrefs(); updateKeyNotice(); });
+  on("btnReadTimeline", "click", readTimeline);
+  on("btnReadScreen", "click", readScreen);
+  on("btnReadCancel", "click", () => { state.cancel = true; });
+  on("btnOpenFile", "click", openFile);
+  on("btnSpellRun", "click", runSpell);
+  on("btnSpellCancel", "click", () => { state.cancel = true; });
+  on("onlyChanged", "change", renderSpell);
+  on("btnSpellMarkers", "click", spellMarkers);
+  on("btnSaveSrt", "click", saveCorrected);
+  on("btnSpellReport", "click", saveSpellReport);
+  on("engine", "change", () => { state.prefs.engine = $("engine").value; savePrefs(); updateKeyNotice(); });
 
-  $("spellList").addEventListener("click", e => {
+  on("spellList", "click", e => {
     const seekEl = withAttr(e.target, "data-seek", $("spellList"));
     if (seekEl) { seekTo(+seekEl.getAttribute("data-seek")); return; }
     const ign = withAttr(e.target, "data-ignore", $("spellList"));
@@ -750,41 +784,72 @@ function bind() {
       if (row) { row.ignored = !row.ignored; renderSpell(); }
     }
   });
-  $("issueList").addEventListener("click", e => {
+  on("issueList", "click", e => {
     const seekEl = withAttr(e.target, "data-seek", $("issueList"));
     if (seekEl) seekTo(+seekEl.getAttribute("data-seek"));
   });
 
-  ["range", "interval", "maxFrames", "perSegment", "withSubs", "focus"].forEach(id => $(id).addEventListener("change", () => { readConfirmForm(); updateEstimate(); }));
-  $("brief").addEventListener("change", readConfirmForm);
-  $("btnConfirm").addEventListener("click", runConfirm);
-  $("btnConfirmCancel").addEventListener("click", () => { state.cancel = true; });
-  $("btnConfirmMarkers").addEventListener("click", confirmMarkers);
-  $("btnConfirmReport").addEventListener("click", saveConfirmReport);
-  $("btnClearMarkers").addEventListener("click", clearMarkers);
+  ["range", "interval", "maxFrames", "perSegment", "withSubs", "focus"].forEach(id => on(id, "change", () => { readConfirmForm(); updateEstimate(); }));
+  on("brief", "change", readConfirmForm);
+  on("btnConfirm", "click", runConfirm);
+  on("btnConfirmCancel", "click", () => { state.cancel = true; });
+  on("btnConfirmMarkers", "click", confirmMarkers);
+  on("btnConfirmReport", "click", saveConfirmReport);
+  on("btnClearMarkers", "click", clearMarkers);
 
-  $("mode").addEventListener("change", () => { state.prefs.mode = $("mode").value; savePrefs(); updateModeUI(); });
-  $("btnTestSub").addEventListener("click", testSubscription);
-  $("btnDiag").addEventListener("click", runDiagnostics);
-  $("btnDiagSave").addEventListener("click", saveDiagnostics);
-  $("btnSaveKey").addEventListener("click", saveKey);
-  $("btnTestKey").addEventListener("click", testKey);
-  $("btnGetKey").addEventListener("click", () => host.openExternal("https://console.anthropic.com/settings/keys"));
-  $("model").addEventListener("change", () => { state.prefs.model = $("model").value; savePrefs(); updateEstimate(); });
-  $("longEdge").addEventListener("change", () => { state.prefs.longEdge = +$("longEdge").value; savePrefs(); updateEstimate(); });
-  ["chAbout", "chAudience", "chTone"].forEach(id => $(id).addEventListener("change", () => {
+  on("mode", "change", () => { state.prefs.mode = $("mode").value; savePrefs(); updateModeUI(); });
+  on("btnTestSub", "click", testSubscription);
+  on("btnDiag", "click", runDiagnostics);
+  on("btnDiagSave", "click", saveDiagnostics);
+  on("btnSaveKey", "click", saveKey);
+  on("btnTestKey", "click", testKey);
+  on("btnGetKey", "click", () => host.openExternal("https://console.anthropic.com/settings/keys"));
+  on("model", "change", () => { state.prefs.model = $("model").value; savePrefs(); updateEstimate(); });
+  on("longEdge", "change", () => { state.prefs.longEdge = +$("longEdge").value; savePrefs(); updateEstimate(); });
+  ["chAbout", "chAudience", "chTone"].forEach(id => on(id, "change", () => {
     state.prefs.channel = { about: $("chAbout").value.trim(), audience: $("chAudience").value.trim(), tone: $("chTone").value.trim() };
     savePrefs();
   }));
 }
 
-window.addEventListener("load", async () => {
-  state.prefs = host.loadPrefs(DEFAULTS);
-  if (!claude.MODELS[state.prefs.model]) state.prefs.model = claude.DEFAULT_MODEL;
-  if (state.prefs.mode !== "api") state.prefs.mode = "subscription";
-  state.apiKey = await host.loadApiKey();
-  fillForm();
-  bind();
-  updateModeUI();
+async function start() {
+  const steps = [
+    ["설정 불러오기", () => {
+      state.prefs = host.loadPrefs(DEFAULTS);
+      if (!claude.MODELS[state.prefs.model]) state.prefs.model = claude.DEFAULT_MODEL;
+      if (state.prefs.mode !== "api") state.prefs.mode = "subscription";
+    }],
+    ["버튼 연결", () => {
+      bind();
+      if (missing.length) throw new Error("패널 파일 일부가 없어요 (" + missing.join(", ") + "). 플러그인을 지우고 다시 설치해 주세요.");
+    }],
+    ["화면 채우기", fillForm],
+    ["사용 방식 표시", updateModeUI],
+    ["API 키 불러오기", async () => {
+      state.apiKey = await host.loadApiKey();
+      if (state.apiKey) $("apiKey").value = state.apiKey;
+      updateKeyNotice();
+    }],
+  ];
+  for (const [name, fn] of steps) {
+    try { await fn(); } catch (e) { reportError(`패널 시작 (${name})`, e); }
+  }
+  host.environment().then(env => { $("version").textContent = "v" + env.plugin; }).catch(() => {});
   await refreshSequence();
-});
+}
+
+// 프리미어 버전에 따라 load 이벤트가 이미 지나갔을 수도 있어서 여러 번 시도 (한 번만 실행)
+let started = false;
+function boot() {
+  if (started || !document.getElementById("btnReadTimeline")) return;
+  started = true;
+  start().catch(e => reportError("패널 시작", e));
+}
+try {
+  window.addEventListener("error", ev => reportError("오류", (ev && (ev.error || ev.message)) || ev));
+  window.addEventListener("unhandledrejection", ev => reportError("오류", ev && ev.reason));
+} catch (e) { /* 지원하지 않으면 버튼별 오류 표시만 */ }
+window.addEventListener("load", boot);
+try { document.addEventListener("DOMContentLoaded", boot); } catch (e) { /* 없음 */ }
+setTimeout(boot, 0);
+setTimeout(boot, 1000);

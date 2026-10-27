@@ -176,10 +176,12 @@ async function inspectItem(item, start, end, withDump) {
     const match = String(await safe(() => comp.getMatchName(), "") || "");
     const textComp = isTextComponent(match);
     const display = textComp || dump ? String(await safe(() => comp.getDisplayName(), "") || "") : "";
-    if (dump) dump.push(`  효과 ${i + 1}: ${match || "?"} / "${display}"`);
+    // 효과 컨트롤의 "텍스트(안녕하세요)"에서 괄호 안이 인스턴스 이름 (문서에 아직 없는 함수라 있을 때만)
+    const instance = (textComp || dump) && typeof comp.getInstanceName === "function" ? String(await safe(() => comp.getInstanceName(), "") || "") : "";
+    if (dump) dump.push(`  효과 ${i + 1}: ${match || "?"} / "${display}"${instance ? ` (${instance})` : ""}`);
     if (!textComp) continue;
     isText = true;
-    const layer = textOfComponentName(display);
+    const layer = textOfClipName(instance) || textOfComponentName(display);
     if (layer && !layers.includes(layer)) layers.push(layer);
     const paramCount = await safe(() => comp.getParamCount(), 0);
     for (let j = 0; j < paramCount; j++) {
