@@ -451,7 +451,7 @@ const TEAMS = {
     members: [["장서아", "팀장"], ["곽도윤", "매니저"], ["피수아", "매니저"]],
     work: ["톤앤매너 체크 중", "우리 말투 맞나요?", "브랜드 가이드 대조 중"],
     idle: ["로고 여백 지켜주세요", "브랜드북 업데이트"] },
-  qa: { en: "QA", ko: "검수팀", role: "팩트체크·리스크 점검", carpet: "#7d8796", carpet2: "#727c8b", shirt: "#4f5a6b", prop: "cabinet",
+  qa: { en: "QA", ko: "검수팀", role: "팩트체크·리스크·영상 검수", carpet: "#7d8796", carpet2: "#727c8b", shirt: "#4f5a6b", prop: "cabinet",
     members: [["석지안", "팀장"], ["양루아", "검수원"], ["변하준", "검수원"]],
     work: ["팩트체크 중", "이 수치 확인 필요!", "광고 표기 확인"],
     idle: ["맞춤법 검사 끝", "꼼꼼함이 생명"] },
@@ -1046,13 +1046,13 @@ const TASKS = {
   "research:data": [700, "### 타깃 오디언스 인사이트 3가지\n### 성공 지표(KPI)와 목표치 가설\n### 업로드 요일·시간 가설과 검증 방법"],
   "plan:strategy": [1300, "브리프에 맞는 콘텐츠 기획안을 쓰세요. 산출물 개수만큼 콘텐츠마다 **제목**, 포맷, 핵심 메시지, 후킹 포인트, 3단 구성을 적으세요. 마지막에 ### 발행 순서와 이유."],
   "make:copy": [1300, "기획안의 콘텐츠마다: 첫 3초 후킹 문구 2안, 캡션 초안(3~4줄), 해시태그 8개."],
-  "make:video": [1500, "기획안의 콘텐츠마다 15~40초 숏폼 대본을 쓰세요. 영상이 아닌 콘텐츠는 숏폼 버전으로 각색. 타임코드별로 [화면] / [자막·대사]를 적고, 촬영·편집 팁 1줄."],
+  "make:video": [1900, "기획안의 콘텐츠마다 인스타 릴스·쇼츠 대본을 쓰세요 (15~30초, 영상이 아닌 콘텐츠는 숏폼으로 각색).\n콘텐츠마다:\n### 후킹 3안\n- 0~1.5초에 보여줄 [화면]과 [자막]. 결과 먼저·질문·반전·숫자 중 서로 다른 유형으로 3개, 가장 센 것에 (추천) 표시\n### 장면표\n- 타임코드마다 [화면] 무엇을 어떤 구도로 / [자막] 화면 글자 12자 이내 / [멘트] 말하는 대사나 속마음 자막\n- 2~3초마다 화면이 바뀌게. 흐름은 후킹 → 공감·문제 → 반전·해결 → 보상(결과) → 저장·팔로우 유도. 마지막 장면이 첫 장면과 이어지면(루프) 더 좋음\n### 촬영·편집 팁\n- 2줄 (구도, 자막 위치·강조색, 효과음 타이밍)"],
   "make:design": [1000, "콘텐츠마다 썸네일·커버 시안을 설명하세요 (레이아웃, 큰 글씨 문구, 컬러, 이미지). 카드뉴스라면 장별 구성. 마지막에 이번 시리즈 디자인 규칙 1문단."],
   "review:brand": [700, "지금까지 산출물이 채널 톤앤매너와 맞는지 점검하세요.\n### 잘 맞는 점\n### 수정 제안 (원문 → 수정안 형식으로 3개 이상)"],
   "review:qa": [800, "### 팩트체크가 필요한 주장과 확인 방법\n### 표현·맞춤법 리스크\n### 저작권·광고 표기·플랫폼 정책 체크리스트\n### 최종 판정 (바로 게시 가능 / 수정 후 게시)"],
   "launch:marketing": [800, "### 업로드 일정표 (콘텐츠별 요일·시간)\n### 크로스포스팅·재가공 계획\n### 협업·광고 아이디어 2개\n### 게시 후 첫 24시간 액션"],
   "launch:community": [900, "### 콘텐츠별 댓글 유도 질문\n### 고정 댓글 초안\n### 예상 댓글 유형 4개와 답글 템플릿\n### DM 자동응답 문구"],
-  "launch:blog": [2200, "이번 프로젝트 내용을 네이버 블로그에 바로 올릴 수 있는 글 1편으로 쓰세요.\n### 제목 후보 (3개, 메인 검색 키워드를 앞쪽에, 30자 안팎)\n### 본문 (도입 2~3문장으로 공감 → 소제목 3~5개, 소제목마다 3~5문장 → 필요한 곳에 [사진: 무엇을 찍은 사진인지] 표시 → 마무리에 이웃추가·댓글 유도)\n### 태그 (#을 붙여 10~15개)\n### 검색 키워드 (메인 1개, 서브 3~5개)\n문장은 블로그 말투(~해요, ~했어요)로 쓰고, 최신 트렌드 브리핑에서 어울리는 키워드가 있으면 자연스럽게 넣으세요."],
+  "launch:blog": [3000, "이번 프로젝트 내용을 네이버 블로그에 바로 올릴 수 있는 글 1편으로 쓰세요. 검색해서 들어온 사람이 끝까지 읽고 저장·이웃추가하고 싶어지는 글이 목표입니다.\n### 제목 후보\n- 3개. 메인 검색 키워드를 맨 앞쪽에, 25~35자. 숫자·결과·대상 중 하나를 넣고 낚시성 과장은 하지 않기\n### 본문\n- 도입 3~4문장: 독자가 겪는 상황을 구체적으로 짚고, 이 글에서 얻을 것을 한 줄로 약속\n- 소제목 4~6개. 소제목은 **굵게** 한 줄, 그 아래 3~6문장. 소제목 2개 이상에 메인·서브 키워드를 자연스럽게\n- 소제목마다 구체적인 정보를 2가지 이상: 순서, 숫자, 예시, 직접 해 본 느낌, 주의할 점\n- [사진: 무엇을 어떤 구도로 찍은 사진인지] 자리를 5~8개, 소제목마다 1개 이상\n- 중간에 '한눈에 정리' 체크리스트 1개 (- 목록 3~5줄)\n- 끝부분에 '자주 묻는 질문' 2~3개 (Q. 질문 / A. 답 2문장 이내)\n- 마무리 2~3문장: 핵심 요약, 공감 한마디, 댓글로 답할 질문 하나, 이웃추가 유도\n### 태그\n- #을 붙여 10~15개. 메인 키워드, 서브 키워드, 상황·대상 키워드를 섞기\n### 검색 키워드\n- 메인 1개, 서브 3~5개\n문체: 블로그 말투(~해요, ~했어요). 한 문단 2~3문장, 문장은 짧게. '~에 대해 알아보겠습니다', '결론적으로', '다양한', '매우 중요합니다' 같은 상투어와 과장은 쓰지 않기. 브랜딩팀·검수팀 결과가 있으면 그 수정 제안을 반영하고, 최신 트렌드 브리핑에서 어울리는 키워드가 있으면 자연스럽게 넣기."],
   "report:secretary": [900, "대표님께 드리는 최종 보고서를 쓰세요.\n### 한 줄 요약\n### 산출물 요약 (콘텐츠별 제목과 핵심 1줄)\n### 바로 실행할 일 Top 3\n### 대표님 결정이 필요한 사항\n### 다음에 해볼 것"],
 };
 const CONTEXT = {
@@ -1060,7 +1060,7 @@ const CONTEXT = {
   make: [["brief:secretary", 900], ["plan:strategy", 2400], ["research:research", 800]],
   review: [["plan:strategy", 1400], ["make:copy", 1400], ["make:video", 1400], ["make:design", 1000]],
   launch: [["plan:strategy", 1400], ["make:copy", 900], ["research:data", 900]],
-  "launch:blog": [["brief:secretary", 700], ["research:research", 1000], ["plan:strategy", 1600], ["make:copy", 1200]],
+  "launch:blog": [["brief:secretary", 700], ["research:research", 1000], ["plan:strategy", 1600], ["make:copy", 1200], ["review:brand", 800], ["review:qa", 700]],
 };
 const hasPhotos = job => !!job && (job.photos ? job.photos.length > 0 : !!(job.files && job.files.length));
 const stageTeams = (job, st) => st.key === "photo" ? (hasPhotos(job) ? st.teams : []) : st.teams.filter(t => t !== "blog" || (job ? job.withBlog : store.profile.blog !== false));
@@ -1100,6 +1100,26 @@ function buildPrompt(job, stage, teamId) {
   const [limit, task] = TASKS[key];
   const photoRule = job.photoNotes ? (PHOTO_RULE[key] || "\n- 대표님이 보낸 사진을 중심으로 만드세요.") : "";
   return head + `[이번 업무]\n${task}${photoRule}\n\n[작성 규칙]\n- 한국어로, ${limit}자 안팎.\n- 마크다운 사용: ### 소제목, - 목록, **굵게**. 표는 쓰지 마세요.\n- 인사말이나 서론 없이 바로 본론.\n- 웹 검색을 할 수 없으니 최신 수치·통계·사실은 지어내지 말고 (확인 필요)로 표시하세요.`;
+}
+
+/* 블로그팀 팀장 퇴고: 초안을 점검표로 한 번 더 고침. 실패하면 초안을 그대로 씀 */
+function blogPolishPrompt(job, draft) {
+  const out = k => (job.outputs[k] && job.outputs[k].status === "done" && job.outputs[k].text) || "";
+  const feedback = [["브랜딩팀", out("review:brand")], ["검수팀", out("review:qa")]].filter(([, t]) => t).map(([n, t]) => `<${n}>\n${clip(t, 900)}`).join("\n\n");
+  const rules = (store.profile.rules || "").trim();
+  return `당신은 AI 콘텐츠 회사 '${store.profile.co || "밤샘 콘텐츠 컴퍼니"}'의 블로그팀 팀장입니다. 아래 네이버 블로그 원고 초안을 바로 올릴 수 있게 퇴고하세요.\n\n[회사·채널 정보]\n${profileText()}\n\n[대표님 지시]\n${job.request}\n\n` +
+    (rules ? `[대표님 상시 지시사항: 반드시 지킬 것]\n${rules}\n\n` : "") +
+    (job.photoNotes ? `[대표님 사진: 본문에 모두 배치, 사진 자리는 [사진 번호: 설명] 형식]\n${clip(job.photoNotes, 1500)}\n\n` : "") +
+    (feedback ? `[브랜딩팀·검수팀 피드백]\n${feedback}\n\n` : "") +
+    `[초안]\n${clip(draft, 7000)}\n\n[점검표: 하나씩 확인하고 부족한 곳을 고치세요]\n1. 제목 후보 3개: 메인 키워드가 앞쪽, 25~35자, 과장 없음\n2. 도입이 독자 상황을 구체적으로 짚고, 얻을 것을 약속하는가\n3. 소제목 4~6개. 소제목마다 숫자·순서·예시·주의할 점 같은 구체 정보가 있는가. 뻔한 일반론은 구체적인 내용으로 바꾸기\n4. 사진 자리 5~8개, 소제목마다 1개 이상, 무엇을 어떤 구도로 찍을지 구체적인가\n5. '한눈에 정리' 체크리스트, '자주 묻는 질문' 2~3개, 마무리(요약·댓글 질문·이웃추가)가 있는가\n6. 블로그 말투, 짧은 문장, 한 문단 2~3문장. 상투어·과장·같은 말 반복을 지우기\n7. 맞춤법·띄어쓰기\n8. 확인되지 않은 수치·사실에는 (확인 필요)\n9. 태그 10~15개, 검색 키워드 메인 1개·서브 3~5개\n\n[출력]\n점검 메모 없이 최종 원고만, 아래 소제목 형식 그대로 쓰세요:\n### 제목 후보\n### 본문\n### 태그\n### 검색 키워드`;
+}
+async function polishBlog(job, draft, onText) {
+  try {
+    const { text, truncated } = await sample(blogPolishPrompt(job, draft), { modelTier: tierOf(), onText: ({ text }) => onText("블로그팀 팀장이 퇴고 중…\n\n" + text) });
+    if (!truncated && /#{1,6}\s*본문/.test(text)) { onText(text); return text; }
+  } catch (e) { console.warn("blog polish", e && e.code); }
+  onText(draft);
+  return draft;
 }
 
 let sample = null, mode = "init"; // claude | demo
@@ -1146,6 +1166,7 @@ async function runClaude(job, stage, teamId, onText) {
       return { notes: (Array.isArray(notes) ? notes : []).filter(n => n && n.title).slice(0, 5) };
     }
     const { text, truncated } = await sample(prompt, { modelTier: tierOf(), onText: ({ text }) => onText(text) });
+    if (key === "launch:blog" && !truncated) return { text: await polishBlog(job, text, onText) };
     return { text: truncated ? text + "\n\n*(분량 제한으로 일부 잘림)*" : text };
   } catch (e) {
     const code = e && e.code;
@@ -2050,8 +2071,10 @@ function demoReels(q) {
 async function reelSpecs(job) {
   const out = k => (job.outputs[k] && job.outputs[k].text) || "";
   if (mode === "claude" && sample) {
-    const prompt = `당신은 인스타그램 릴스 편집자입니다. 아래 기획안·영상 대본·카피를 바탕으로 바로 편집할 수 있는 릴스 제작 사양을 만드세요.\n\n[기획안]\n${clip(out("plan:strategy"), 1500)}\n\n[영상 대본]\n${clip(out("make:video"), 2500)}\n\n[카피·캡션]\n${clip(out("make:copy"), 1500)}\n\n${job.photoNotes ? `[대표님 사진 ${(job.photos || []).length}장]\n${clip(job.photoNotes, 1500)}\n\n` : ""}규칙:\n- 릴스는 최대 3개, 기획안 콘텐츠 순서대로\n${job.photoNotes ? "- 장면마다 photo에 그 장면 배경으로 쓸 대표님 사진 번호를 넣으세요 (사진 내용과 자막이 맞게, 같은 사진을 다시 써도 됨)\n" : ""}- 릴스마다 장면 5~8개. 장면 길이 sec는 1.5~3 (0.5 단위), 총 10~15초. 2초 안팎마다 화면이 바뀌어야 지루하지 않아요\n- text: 화면 자막, 14자 이내. 첫 장면은 스크롤을 멈추게 하는 후킹 문장\n- 반려동물·인물이 나오면 속마음 자막을 '이름: 대사' 형식으로 2개 이상 (예: '코코: 한 입만…'). 마지막에 반전이나 공감 포인트\n- emoji: 장면에 어울리는 이모지 1개\n- sub: 마지막 장면에만, 저장·팔로우를 부르는 짧은 문구 (예: '저장하고 또 보러 와요')\n- visual: 그 장면에 넣으면 좋은 사진·영상 (대표님이 직접 찍을 수 있는 것)\n- caption: 인스타그램 캡션 3~5줄, 첫 줄 후킹\n- hashtags: 10~15개, # 없이\n오직 JSON 배열 하나로만 답하세요: [{"title":"20자 이내","scenes":[{"sec":2,"text":"자막","emoji":"🐶","sub":"","visual":"설명"${job.photoNotes ? ',"photo":1' : ""}}],"caption":"...","hashtags":["태그"]}]`;
-    try { const r = await sample.json(prompt, { modelTier: "quick" }); if (Array.isArray(r) && r.length) return r; }
+    const feedback = [["브랜딩팀", out("review:brand")], ["검수팀", out("review:qa")]].filter(([, t]) => t).map(([n, t]) => `<${n}>\n${clip(t, 700)}`).join("\n\n");
+    const rules = (store.profile.rules || "").trim();
+    const prompt = `당신은 AI 콘텐츠 회사 '${store.profile.co || "밤샘 콘텐츠 컴퍼니"}'의 릴스 편집 감독입니다. 아래 자료로 끝까지 보고 저장하고 싶어지는 인스타그램 릴스 제작 사양을 만드세요.\n\n[회사·채널 정보]\n${profileText()}\n\n${rules ? `[대표님 상시 지시사항: 반드시 지킬 것]\n${rules}\n\n` : ""}[기획안]\n${clip(out("plan:strategy"), 1500)}\n\n[영상 대본]\n${clip(out("make:video"), 2800)}\n\n[카피·캡션]\n${clip(out("make:copy"), 1500)}\n\n${feedback ? `[브랜딩팀·검수팀 피드백: 반영할 것]\n${feedback}\n\n` : ""}${job.photoNotes ? `[대표님 사진 ${(job.photos || []).length}장]\n${clip(job.photoNotes, 1500)}\n\n` : ""}규칙:\n- 릴스는 최대 3개, 기획안 콘텐츠 순서대로\n${job.photoNotes ? "- 장면마다 photo에 그 장면 배경으로 쓸 대표님 사진 번호를 넣으세요 (사진 내용과 자막이 맞게, 같은 사진을 다시 써도 됨)\n" : ""}- 릴스마다 장면 6~8개. 장면 길이 sec는 1.5~3 (0.5 단위), 총 12~18초. 2초 안팎마다 화면이 바뀌어야 지루하지 않아요\n- 첫 장면은 0~1.5초 안에 스크롤을 멈추게 하는 후킹. 대본의 후킹 3안 중 (추천) 또는 가장 센 것을 쓰고, 결과 먼저·질문·반전·숫자 중 하나로\n- 흐름: 후킹 → 공감·문제 → 반전·해결 → 보상(결과) → 마지막 장면에서 저장·팔로우 유도\n- text: 화면 자막 12자 이내, 한 장면에 메시지 하나. 설명하지 말고 말하듯이. 앞 장면과 같은 말 반복 금지\n- 반려동물·인물이 나오면 속마음 자막을 '이름: 대사' 형식으로 2개 이상 (예: '코코: 한 입만…'). 마지막 즈음 반전이나 공감 포인트\n- emoji: 장면에 어울리는 이모지 1개 (어울리는 게 없으면 빈 문자열)\n- sub: 마지막 장면에만, 저장·팔로우를 부르는 짧은 문구 (예: '저장하고 또 보러 와요')\n- visual: 그 장면에 넣을 사진·영상을 대표님이 바로 찍을 수 있게 피사체와 구도까지 구체적으로\n- caption: 3~6줄. 첫 줄은 미리보기에 보이는 30자 안쪽 후킹, 이어서 내용 2~3줄, 저장·공유 유도, 마지막 줄은 댓글로 답할 질문\n- hashtags: 12~15개, # 없이. 큰 키워드 3~4개 + 중간 키워드 5~6개 + 상황·대상 같은 좁은 키워드 4~5개\n오직 JSON 배열 하나로만 답하세요: [{"title":"20자 이내","scenes":[{"sec":2,"text":"자막","emoji":"🐶","sub":"","visual":"설명"${job.photoNotes ? ',"photo":1' : ""}}],"caption":"...","hashtags":["태그"]}]`;
+    try { const r = await sample.json(prompt, { modelTier: tierOf() }); if (Array.isArray(r) && r.length) return r; }
     catch (e) { log("video", "릴스 편집안 정리에 실패해서 기본 구성으로 만들어요", true); }
   }
   return demoReels(job.request);

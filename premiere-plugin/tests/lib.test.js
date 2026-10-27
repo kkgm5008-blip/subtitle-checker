@@ -138,11 +138,20 @@ test("컨펌 리포트·마커", () => {
   };
   const text = report.confirmReport(review, { sequence: "S", start: 0, end: 60, frames: 20, model: "m" });
   assert.match(text, /판정: 수정 후 컨펌/);
-  assert.match(text, /\[0:12\.5\] \[필수\] 맞춤법/);
+  assert.match(text, /\[0:12\.5\] \[필수\] 검수팀 · 맞춤법/);
   const m = report.confirmMarkers(review);
   assert.equal(m[0].color, "RED");
-  assert.match(m[0].name, /^\[AI 컨펌·필수\] 맞춤법: 할께요/);
-  assert.match(m[0].comments, /수정: 할게요/);
+  assert.match(m[0].name, /^\[AI 컨펌·필수\] 검수팀 · 맞춤법: 할께요/);
+  assert.match(m[0].comments, /제안: 할게요/);
+
+  const idea = { verdict: "컨펌", summary: "", goodPoints: [], issues: [
+    { time: 3, frame: 0, team: "카피라이팅팀", category: "멘트", severity: "권장", current: "오늘 산책 갔어요", suggestion: "산책 가자는 말에 0.1초 만에 현관 도착", alternatives: ["코코: 드디어 내 시간", "산책 = 세상에서 제일 좋은 말"], detail: "첫 자막이 밋밋해요" },
+  ] };
+  const im = report.confirmMarkers(idea)[0];
+  assert.match(im.name, /^\[AI 컨펌·권장\] 카피라이팅팀 · 멘트/);
+  assert.equal(im.color, "ORANGE");
+  assert.match(im.comments, /대안 1: 코코: 드디어 내 시간\n대안 2: 산책/);
+  assert.match(report.confirmReport(idea, {}), /대안 2: 산책 = 세상에서 제일 좋은 말/);
 });
 
 test("네이버: passportKey 찾기, JSONP, 태그 제거", () => {

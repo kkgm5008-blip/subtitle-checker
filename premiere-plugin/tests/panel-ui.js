@@ -132,8 +132,8 @@ function spellAnswer(text) {
     return { fixes };
 }
 const REVIEW = { verdict: "수정 후 컨펌", summary: "전체 흐름은 좋아요. 자막 오타 하나만 고치면 됩니다.", good_points: ["컷 호흡이 좋아요"],
-  issues: [{ time: 15.5, category: "맞춤법", severity: "필수", current: "볼께요", suggestion: "볼게요", detail: "‘-ㄹ게요’가 표준" },
-    { time: 22.5, category: "화면 구성", severity: "참고", current: "로고가 잘림", suggestion: "로고를 안쪽으로", detail: "세이프 영역" }] };
+  issues: [{ time: 15.5, team: "검수팀", category: "맞춤법", severity: "필수", current: "볼께요", suggestion: "볼게요", alternatives: [], detail: "‘-ㄹ게요’가 표준" },
+    { time: 22.5, team: "카피라이팅팀", category: "멘트", severity: "참고", current: "다음에 또 봐요", suggestion: "다음 편: 코코 첫 수영", alternatives: ["구독하면 코코가 웃어요", "다음 주에 또 만나요"], detail: "마지막 자막에 다음 편 예고" }] };
 const reply = (status, obj) => ({ ok: status === 200, status, headers: { get: () => null }, text: async () => JSON.stringify(obj), json: async () => obj });
 let bridgeUp = true;
 global.fetch = async (url, init) => {
@@ -220,12 +220,20 @@ async function until(pred, what) {
   assert.equal(apiCalls.length, 0, "no API calls in subscription mode");
   change("range", "all"); await settle();
   assert.match($("estimate").textContent, /구독 사용량에서 차감/);
-  click("btnConfirm"); await until(() => /컨펌을 받았어요/.test($("confirmMsg").textContent), "confirm (sub)");
+  click("btnConfirm"); await until(() => /검수팀 리뷰가 왔어요/.test($("confirmMsg").textContent), "confirm (sub)");
   const puts = bridgeCalls.filter(c => c.method === "PUT");
   console.log("bridge uploads:", puts.length, "| verdict:", $("verdict").textContent);
   assert.ok(puts.length > 0);
   assert.equal(apiCalls.length, 0);
   assert.doesNotMatch($("confirmMsg").textContent, /비용/);
+
+  // 채널 정보는 저장되고 검수팀 요청에 들어감
+  change("chAbout", "반려견 코코 채널"); change("chTone", "귀엽게");
+  click("btnConfirm"); await until(() => bridgeCalls.filter(c => c.path.endsWith("/run")).length >= 4, "confirm with channel");
+  await until(() => !$("btnConfirm").disabled, "confirm done");
+  const lastRun = JSON.parse(bridgeCalls.filter(c => c.path.endsWith("/run")).at(-1).body);
+  assert.match(lastRun.prompt, /- 채널·브랜드: 반려견 코코 채널\n- 톤앤매너: 귀엽게/);
+  assert.match(lastRun.system, /검수팀장/);
 
   // ── API 키 모드로 바꾸기 ──
   change("mode", "api"); await settle();
@@ -293,7 +301,7 @@ async function until(pred, what) {
   assert.match($("estimate").textContent, /0:10\.0~0:30\.0/);
   log.exports.length = 0;
   // 두 번 눌러도 한 번만 실행
-  click("btnConfirm"); click("btnConfirm"); await until(() => log.exports.length > 0 && /컨펌을 받았어요/.test($("confirmMsg").textContent), "confirm 2");
+  click("btnConfirm"); click("btnConfirm"); await until(() => log.exports.length > 0 && /검수팀 리뷰가 왔어요/.test($("confirmMsg").textContent), "confirm 2");
   console.log("exports:", log.exports.map(e => e.t).join(","), log.exports[0].w + "x" + log.exports[0].h);
   assert.ok(log.exports.every(e => e.t >= 10 && e.t < 30));
   assert.equal(new Set(log.exports.map(e => e.t)).size, log.exports.length, "ran once");
@@ -308,6 +316,9 @@ async function until(pred, what) {
   assert.match($("verdict").className, /v-fix/);
   assert.equal($("issueList").querySelectorAll(".card").length, 2);
   assert.ok($("issueList").querySelector("img.thumb"));
+  assert.match($("verdict").textContent, /검수팀 판정: 수정 후 컨펌/);
+  assert.match($("issueList").textContent, /카피라이팅팀/);
+  assert.match($("issueList").textContent, /대안 1\. 구독하면 코코가 웃어요/);
   $("issueList").querySelector("[data-seek]").dispatchEvent(new window.Event("click", { bubbles: true })); await settle();
   assert.equal(log.seeks.at(-1), 15.5);
 

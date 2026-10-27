@@ -228,11 +228,24 @@ function normalizeFixes(result, batch) {
   return fixes;
 }
 
-/* ───────── 영상 컨펌 ───────── */
+/* ───────── 영상 컨펌: 밤샘 콘텐츠 컴퍼니 검수팀 리뷰 ───────── */
 
 const VERDICTS = ["컨펌", "수정 후 컨펌", "재작업 필요"];
 const SEVERITIES = ["필수", "권장", "참고"];
-const CATEGORIES = ["맞춤법", "띄어쓰기", "오타", "자막 가독성", "자막 내용", "화면 구성", "색·밝기", "브랜드·로고", "요청사항", "기타"];
+const CATEGORIES = [
+  "맞춤법", "띄어쓰기", "오타", "자막 가독성", "자막 내용",
+  "자막 느낌", "멘트", "디자인", "편집 호흡",
+  "화면 구성", "색·밝기", "브랜드·로고", "요청사항", "기타",
+];
+// 검수팀이 주관하고, 분야별로 컴퍼니의 담당 팀이 의견을 냄
+const TEAMS = ["검수팀", "카피라이팅팀", "디자인팀", "영상제작팀", "브랜딩팀"];
+const TEAM_OF = {
+  맞춤법: "검수팀", 띄어쓰기: "검수팀", 오타: "검수팀", "자막 내용": "검수팀", 요청사항: "검수팀", 기타: "검수팀",
+  "자막 느낌": "카피라이팅팀", 멘트: "카피라이팅팀",
+  디자인: "디자인팀", "자막 가독성": "디자인팀", "색·밝기": "디자인팀",
+  "편집 호흡": "영상제작팀", "화면 구성": "영상제작팀",
+  "브랜드·로고": "브랜딩팀",
+};
 
 const CONFIRM_SCHEMA = {
   type: "object",
@@ -240,21 +253,24 @@ const CONFIRM_SCHEMA = {
   required: ["verdict", "summary", "good_points", "issues"],
   properties: {
     verdict: { type: "string", enum: VERDICTS },
-    summary: { type: "string", description: "편집자에게 주는 총평 2~4문장" },
+    summary: { type: "string", description: "검수팀장이 편집자에게 주는 총평 2~4문장" },
     good_points: { type: "array", items: { type: "string" }, description: "잘된 점 0~3개" },
     issues: {
       type: "array",
+      description: "시간순 의견. 꼭 고칠 오류와 더 좋게 만드는 제안을 함께",
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["time", "category", "severity", "current", "suggestion", "detail"],
+        required: ["time", "team", "category", "severity", "current", "suggestion", "alternatives", "detail"],
         properties: {
-          time: { type: "number", description: "문제가 보인 프레임의 시간(초). 프레임 라벨의 초 값" },
+          time: { type: "number", description: "그 장면 프레임 라벨의 초 값" },
+          team: { type: "string", enum: TEAMS, description: "의견을 낸 팀" },
           category: { type: "string", enum: CATEGORIES },
           severity: { type: "string", enum: SEVERITIES },
-          current: { type: "string", description: "지금 화면에 있는 그대로 (틀린 글자는 정확히 인용)" },
-          suggestion: { type: "string", description: "이렇게 바꾸면 됨" },
-          detail: { type: "string", description: "왜 문제인지 한두 문장" },
+          current: { type: "string", description: "지금 화면·자막 그대로 (글자는 정확히 인용)" },
+          suggestion: { type: "string", description: "가장 추천하는 수정안. 자막·멘트는 바꿀 문구 그대로, 디자인은 바로 따라 할 수 있게 구체적으로" },
+          alternatives: { type: "array", items: { type: "string" }, description: "다른 느낌의 대안 0~3개 (자막·멘트·디자인 제안일 때)" },
+          detail: { type: "string", description: "왜 이렇게 바꾸면 좋은지 한두 문장" },
         },
       },
     },
@@ -262,32 +278,37 @@ const CONFIRM_SCHEMA = {
 };
 
 const FOCUS = {
-  all: "전체 컨펌: 맞춤법·자막·화면 구성·요청사항을 모두 봅니다.",
-  text: "자막·맞춤법 위주: 화면에 보이는 모든 글자와 자막을 집중적으로 봅니다. 화면 구성은 심각한 문제만 짚습니다.",
-  visual: "화면·편집 위주: 구성, 빈 화면, 색·밝기, 브랜드 노출을 집중적으로 봅니다. 글자는 명백한 오타만 짚습니다.",
+  all: "전체 리뷰: 업로드 전에 꼭 고칠 오류와, 더 좋게 만드는 제안(자막 느낌·멘트·디자인·편집 호흡)을 모두 냅니다.",
+  text: "오류 위주: 맞춤법·오타·자막 가독성·화면 실수처럼 꼭 고칠 것을 집중해서 봅니다. 제안은 효과가 큰 것 몇 개만 냅니다.",
+  visual: "제안 위주: 자막 느낌, 멘트, 디자인, 편집 호흡을 더 좋게 만드는 제안을 넉넉히 냅니다. 명백한 오류도 함께 짚습니다.",
 };
 
-const CONFIRM_SYSTEM = `당신은 영상 편집 결과물을 업로드 전에 최종 검수(컨펌)하는 시니어 PD입니다. 편집자가 보낸 시퀀스의 프레임(정지 화면)과 자막 목록을 보고, 고쳐야 할 점을 시간과 함께 구체적으로 알려줍니다. 편집자가 바로 고칠 수 있게 '지금 상태'와 '바꿀 내용'을 짧고 정확하게 씁니다.
+const CONFIRM_SYSTEM = `당신은 AI 콘텐츠 회사 '밤샘 콘텐츠 컴퍼니'의 검수팀장 석지안입니다. 편집자가 프리미어에서 보낸 영상(시간 간격으로 뽑은 정지 화면 + 자막 목록)을 검수팀이 주관해서 보고, 분야별로 컴퍼니 팀들의 의견을 모아 "몇 분 몇 초에 이렇게 바꾸면 좋겠다"는 피드백을 줍니다.
 
-검토 항목:
-1. 화면에 보이는 모든 글자(자막, 타이틀, 그래픽, 하단 이름표)의 맞춤법·띄어쓰기·오타. 틀린 글자는 current에 화면 그대로 인용하고 suggestion에 고친 글을 씁니다.
-2. 자막 가독성: 화면 밖으로 잘림, 배경과 겹쳐 안 읽힘, 한 줄이 너무 김, 세이프 영역 침범, 글자 크기·위치가 장면마다 들쭉날쭉함.
-3. 자막 내용: 자막 목록이 있으면 화면 내용과 어긋나는 곳, 같은 말의 표기가 앞뒤로 다른 곳(예: 브이로그/VLOG).
-4. 화면 구성: 검은 화면·빈 프레임, 지우지 않은 기본 문구('텍스트 입력', 'Title Here' 등)나 워터마크, 초점이 나간 컷, 장면 사이 급격한 색·밝기 차이, 로고·브랜드 노출 문제.
-5. 요청사항(브리프)과 어긋나는 점.
+팀별 담당:
+- 검수팀: 화면 속 모든 글자(자막, 타이틀, 그래픽, 이름표)의 맞춤법·띄어쓰기·오타, 자막과 화면 내용 불일치, 같은 말의 표기 흔들림(예: 브이로그/VLOG), 요청사항 위반, 지우지 않은 기본 문구('텍스트 입력', 'Title Here')나 워터마크.
+- 카피라이팅팀: 자막 느낌과 멘트. 자막 말투·길이·강조가 장면 분위기와 맞는지, 첫 자막이 스크롤을 멈추게 하는지, 밋밋하거나 설명조인 멘트를 더 후킹·공감·위트 있게 바꿀 수 있는지. 바꿀 문구를 그대로 써 주고, alternatives에 결이 다른 대안(예: 위트형, 공감형, 정보형)을 2~3개 줍니다.
+- 디자인팀: 자막 디자인(글꼴 굵기, 크기, 색, 외곽선·배경 박스, 위치·세이프 영역), 강조 단어 색, 그래픽·이모지·스티커, 장면 사이 색·밝기 차이. 편집자가 바로 따라 할 수 있게 구체적으로 씁니다 (예: "하단 중앙, 흰 글자 + 검은 외곽선 4px, 강조 단어만 노란색").
+- 영상제작팀: 편집 호흡. 첫 3초 후킹, 같은 화면이 오래 이어지는 구간(같은 장면 프레임이 연속), 컷 순서, 마지막 저장·구독 유도.
+- 브랜딩팀: 채널 톤앤매너와 어긋나는 표현·디자인, 로고·브랜드 노출.
 
 규칙:
-- 프레임은 시간 간격을 두고 뽑은 정지 화면입니다. 움직임, 소리, 컷 사이의 내용은 볼 수 없으니 추측하지 않습니다.
-- time에는 문제를 본 프레임 라벨의 초 값을 그대로 씁니다. 같은 문제가 여러 프레임에 이어지면 처음 보인 프레임 하나로 묶습니다.
-- severity: 업로드 전에 반드시 고칠 것은 "필수", 고치면 좋아지는 것은 "권장", 취향 차이나 확인이 필요한 것은 "참고".
+- 프레임은 정지 화면입니다. 소리와 움직임은 볼 수 없으니 추측하지 않습니다. 멘트는 자막 목록과 화면 글자를 기준으로 봅니다. 편집 호흡은 프레임 시간과 장면 변화로만 판단합니다.
+- time에는 그 장면 프레임 라벨의 초 값을 그대로 씁니다. 같은 문제가 여러 프레임에 이어지면 처음 프레임 하나로 묶습니다.
+- 의견마다 current(지금)와 suggestion(추천 수정안)을 구체적으로 씁니다. "더 재밌게", "임팩트 있게" 같은 막연한 말만 쓰지 않습니다.
+- severity: 업로드 전에 반드시 고칠 오류는 "필수", 하면 확실히 좋아지는 제안은 "권장", 취향·선택 사항은 "참고". 취향 제안을 "필수"로 올리지 않습니다.
+- 의견은 영상 길이에 맞게 효과 큰 순서로 최대 20개까지. 좋은 장면을 억지로 고치지 않고, 문제나 제안을 지어내지 않습니다.
 - verdict: 필수가 없으면 "컨펌", 필수가 있지만 부분 수정으로 끝나면 "수정 후 컨펌", 전체를 다시 손봐야 하면 "재작업 필요".
-- 고칠 점이 없으면 issues를 빈 배열로 둡니다. 문제를 지어내지 않습니다.`;
+- 채널 정보가 있으면 타깃과 톤앤매너에 맞춰 제안합니다.`;
 
-function confirmIntro({ info, brief, focus, segments }) {
+function confirmIntro({ info, brief, focus, segments, channel }) {
   const parts = [];
-  parts.push(`[시퀀스]\n- 이름: ${info.name || "(이름 없음)"}\n- 검토 구간: ${formatClock(info.start)} ~ ${formatClock(info.end)} (총 ${Math.round(info.end - info.start)}초)\n- 화면 크기: ${info.width}x${info.height}\n- 보내는 프레임: ${info.frameCount}장`);
+  parts.push(`[시퀀스]\n- 이름: ${info.name || "(이름 없음)"}\n- 검토 구간: ${formatClock(info.start)} ~ ${formatClock(info.end)} (총 ${Math.round(info.end - info.start)}초)\n- 화면 크기: ${info.width}x${info.height}${info.height > info.width ? " (세로 영상: 릴스·쇼츠)" : ""}\n- 보내는 프레임: ${info.frameCount}장`);
+  const ch = channel || {};
+  const chLines = [["채널·브랜드", ch.about], ["타깃 시청자", ch.audience], ["톤앤매너", ch.tone]].filter(([, v]) => v && String(v).trim());
+  parts.push(`[채널 정보]\n${chLines.length ? chLines.map(([k, v]) => `- ${k}: ${String(v).trim()}`).join("\n") : "- (입력 없음. 일반적인 유튜브·릴스 기준으로 판단하세요.)"}`);
   parts.push(`[검토 초점]\n${FOCUS[focus] || FOCUS.all}`);
-  parts.push(`[편집자 요청사항]\n${(brief || "").trim() || "(없음. 일반적인 업로드 기준으로 검토하세요.)"}`);
+  parts.push(`[편집자 요청사항]\n${(brief || "").trim() || "(없음)"}`);
   if (segments && segments.length) {
     let budget = 20000;
     const lines = [];
@@ -296,7 +317,7 @@ function confirmIntro({ info, brief, focus, segments }) {
       if ((budget -= line.length) < 0) { lines.push(`- (이후 ${segments.length - lines.length}개 생략)`); break; }
       lines.push(line);
     }
-    parts.push(`[자막 목록]\n${lines.join("\n")}`);
+    parts.push(`[자막 목록 (멘트)]\n${lines.join("\n")}`);
   }
   return parts.join("\n\n");
 }
@@ -311,7 +332,7 @@ function confirmContent(p) {
     content.push({ type: "text", text: `[프레임 ${i + 1}] ${formatClock(f.time)} (${f.time.toFixed(2)}초)` });
     content.push({ type: "image", source: { type: "base64", media_type: f.mediaType, data: f.data } });
   });
-  content.push({ type: "text", text: "위 프레임과 자막을 검토 항목대로 보고 컨펌 결과를 주세요." });
+  content.push({ type: "text", text: "위 프레임과 자막을 팀별 담당대로 보고 검수팀 리뷰를 주세요." });
   return content;
 }
 
@@ -330,13 +351,16 @@ function normalizeReview(r, frames, info) {
     let t = +it.time;
     if (!isFinite(t)) t = info.start;
     t = Math.min(info.end, Math.max(info.start, t));
+    const category = CATEGORIES.includes(it.category) ? it.category : "기타";
     return {
       time: t,
       frame: times.length ? nearest(t) : -1,
-      category: CATEGORIES.includes(it.category) ? it.category : "기타",
+      team: TEAMS.includes(it.team) ? it.team : TEAM_OF[category],
+      category,
       severity: SEVERITIES.includes(it.severity) ? it.severity : "참고",
       current: String(it.current || ""),
       suggestion: String(it.suggestion || ""),
+      alternatives: (Array.isArray(it.alternatives) ? it.alternatives : []).map(a => String(a || "").trim()).filter(Boolean).slice(0, 3),
       detail: String(it.detail || ""),
     };
   }).sort((a, b) => a.time - b.time);
@@ -362,5 +386,5 @@ async function ping({ mode, apiKey, model }, opts) {
 module.exports = {
   MODELS, DEFAULT_MODEL, ClaudeError, buildRequest, send, readJson, usageCost,
   SPELL_TYPES, SPELL_SCHEMA, batchSegments, spellPrompt, checkSpelling, normalizeFixes,
-  VERDICTS, SEVERITIES, CATEGORIES, CONFIRM_SCHEMA, confirmContent, reviewVideo, normalizeReview, ping,
+  VERDICTS, SEVERITIES, CATEGORIES, TEAMS, CONFIRM_SCHEMA, confirmContent, reviewVideo, normalizeReview, ping,
 };

@@ -13,7 +13,7 @@
 
   <nav class="tabs">
     <button class="tab on" data-tab="spell">맞춤법</button>
-    <button class="tab" data-tab="confirm">AI 컨펌</button>
+    <button class="tab" data-tab="confirm">검수팀 리뷰</button>
     <button class="tab" data-tab="settings">설정</button>
   </nav>
 
@@ -58,11 +58,12 @@
     </div>
   </section>
 
-  <!-- AI 컨펌 -->
+  <!-- 검수팀 리뷰 (AI 컨펌) -->
   <section class="pane" id="pane-confirm" style="display:none">
     <div class="box">
-      <div class="label">Claude가 시퀀스 화면을 보고 컨펌해 드려요</div>
-      <div class="hint">시퀀스에서 정지 화면(프레임)을 뽑아 보냅니다. Claude는 소리와 움직임은 볼 수 없어요. 자막 내용까지 대조하려면 맞춤법 탭에서 자막을 먼저 불러오세요.</div>
+      <div class="label">밤샘 콘텐츠 컴퍼니 검수팀이 영상을 봐 드려요</div>
+      <div class="hint">검수팀이 주관하고 카피라이팅·디자인·영상제작·브랜딩팀이 함께 봐서 "몇 분 몇 초에 자막 느낌·멘트·디자인을 이렇게 바꾸면 좋겠다"는 의견과 대안을 줍니다. 오타 같은 꼭 고칠 오류도 함께 짚어요.</div>
+      <div class="hint">시퀀스에서 정지 화면(프레임)을 뽑아 보냅니다. 소리와 움직임은 볼 수 없어서, 멘트까지 보려면 맞춤법 탭에서 자막(SRT)을 먼저 불러오세요. 설정 탭에 채널 정보를 적어 두면 우리 채널에 맞춰 제안해요.</div>
       <div class="field">
         <span>검토 구간</span>
         <select id="range">
@@ -95,18 +96,18 @@
       <div class="field">
         <span>검토 초점</span>
         <select id="focus">
-          <option value="all">전체 컨펌 (맞춤법 + 자막 + 화면 + 요청사항)</option>
-          <option value="text">자막·맞춤법 위주</option>
-          <option value="visual">화면·편집 위주</option>
+          <option value="all">전체 리뷰 (꼭 고칠 오류 + 더 좋게 만드는 제안)</option>
+          <option value="text">오류 위주 (맞춤법·오타·가독성)</option>
+          <option value="visual">제안 위주 (자막 느낌·멘트·디자인·편집 호흡)</option>
         </select>
       </div>
       <div class="field col">
         <span>요청사항 (선택)</span>
-        <textarea id="brief" rows="3" placeholder="예: 유튜브 브이로그. 자막은 하단 중앙, 노란 강조색. 로고는 오른쪽 위에 계속 보여야 함."></textarea>
+        <textarea id="brief" rows="3" placeholder="예: 이번 편은 좀 더 웃기게. 자막은 하단 중앙, 노란 강조색. 로고는 오른쪽 위에 계속 보여야 함."></textarea>
       </div>
       <div class="hint" id="estimate"></div>
       <div class="buttons">
-        <button class="primary" id="btnConfirm">컨펌 요청</button>
+        <button class="primary" id="btnConfirm">검수팀에 리뷰 요청</button>
         <button id="btnConfirmCancel" style="display:none">멈추기</button>
       </div>
       <div class="msg" id="confirmMsg"></div>
@@ -156,6 +157,14 @@
         <button class="link" id="btnGetKey">키 만들러 가기 ↗</button>
       </div>
       <div class="msg" id="keyMsg"></div>
+    </div>
+
+    <div class="box">
+      <div class="label">우리 채널 정보 (검수팀이 참고)</div>
+      <div class="hint">밤샘 콘텐츠 컴퍼니 설정 탭에 적은 내용을 그대로 옮겨 적으면 돼요.</div>
+      <div class="field col"><span>채널·브랜드 소개</span><input type="text" id="chAbout" placeholder="예: 반려견 코코의 일상을 담은 유튜브·인스타 채널"></div>
+      <div class="field col"><span>타깃 시청자</span><input type="text" id="chAudience" placeholder="예: 반려견을 키우는 20~30대"></div>
+      <div class="field col"><span>톤앤매너</span><input type="text" id="chTone" placeholder="예: 귀엽고 따뜻하게, 반말 자막, 과장 없이"></div>
     </div>
 
     <div class="box">

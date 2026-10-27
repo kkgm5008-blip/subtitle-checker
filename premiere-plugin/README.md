@@ -3,7 +3,7 @@
 프리미어 프로 안에서 패널로 열어 쓰는 플러그인입니다.
 
 - **맞춤법**: 자막(SRT·VTT·TXT 파일, 또는 타임라인의 그래픽 텍스트)을 Claude나 네이버 맞춤법 검사기로 검사합니다. 바뀐 글자를 색으로 보여 주고, 시간을 누르면 그 위치로 재생헤드가 이동합니다. 수정할 곳을 타임라인 마커로 찍고, 교정된 SRT로 저장할 수 있습니다.
-- **AI 컨펌**: 시퀀스에서 정지 화면(프레임)을 뽑아 Claude에게 보냅니다. Claude가 화면 속 글자의 맞춤법, 자막 가독성, 화면 구성, 요청사항을 보고 **컨펌 / 수정 후 컨펌 / 재작업 필요** 판정과 시간별 수정 목록을 줍니다. 수정 목록은 타임라인 마커(빨강=필수, 주황=권장, 파랑=참고)로 찍을 수 있습니다.
+- **검수팀 리뷰 (AI 컨펌)**: 시퀀스에서 정지 화면(프레임)을 뽑아 '밤샘 콘텐츠 컴퍼니' 검수팀에게 보냅니다. 검수팀이 주관하고 카피라이팅·디자인·영상제작·브랜딩팀이 함께 봐서 "몇 분 몇 초에 자막 느낌·멘트·디자인을 이렇게 바꾸면 좋겠다"는 의견을 다른 느낌의 대안과 함께 줍니다. 오타·가독성 같은 꼭 고칠 오류도 짚고, **컨펌 / 수정 후 컨펌 / 재작업 필요** 판정을 냅니다. 의견은 타임라인 마커(빨강=필수, 주황=권장, 파랑=참고)로 찍을 수 있습니다.
 
 ## Claude를 쓰는 두 가지 방식
 
@@ -27,7 +27,7 @@
 
 ### 1단계: 플러그인 설치 (.ccx 더블클릭)
 
-1. 이 저장소의 [`premiere-plugin/dist/subtitle-checker-premiere-1.1.0-windows.zip`](dist/subtitle-checker-premiere-1.1.0-windows.zip)을 내려받아 압축을 풉니다 (GitHub에서 파일을 열고 Download raw file). 안에 `.ccx`, `claude-bridge.ps1`, `README.txt`가 있습니다. Mac은 [`.ccx`](dist/subtitle-checker-premiere-1.1.0.ccx)만 받으면 됩니다.
+1. 이 저장소의 [`premiere-plugin/dist/subtitle-checker-premiere-1.2.0-windows.zip`](dist/subtitle-checker-premiere-1.2.0-windows.zip)을 내려받아 압축을 풉니다 (GitHub에서 파일을 열고 Download raw file). 안에 `.ccx`, `claude-bridge.ps1`, `README.txt`가 있습니다. Mac은 [`.ccx`](dist/subtitle-checker-premiere-1.2.0.ccx)만 받으면 됩니다.
 2. 프리미어를 끈 상태에서 `.ccx` 파일을 더블클릭합니다. Creative Cloud 데스크톱 앱이 설치를 진행합니다. 마켓플레이스 밖에서 받은 플러그인이라는 확인 창이 나오면 설치를 계속하세요.
 3. 프리미어를 켜고 **창(Window) > UXP 플러그인(UXP Plugins) > 자막 맞춤법 · AI 컨펌**을 엽니다.
 
@@ -38,13 +38,13 @@
 Windows (PowerShell):
 
 ```powershell
-& "C:\Program Files\Common Files\Adobe\Adobe Desktop Common\RemoteComponents\UPI\UnifiedPluginInstallerAgent\UnifiedPluginInstallerAgent.exe" /install "$env:USERPROFILE\Downloads\subtitle-checker-premiere-1.1.0.ccx"
+& "C:\Program Files\Common Files\Adobe\Adobe Desktop Common\RemoteComponents\UPI\UnifiedPluginInstallerAgent\UnifiedPluginInstallerAgent.exe" /install "$env:USERPROFILE\Downloads\subtitle-checker-premiere-1.2.0.ccx"
 ```
 
 macOS (터미널):
 
 ```bash
-"/Library/Application Support/Adobe/Adobe Desktop Common/RemoteComponents/UPI/UnifiedPluginInstallerAgent/UnifiedPluginInstallerAgent.app/Contents/MacOS/UnifiedPluginInstallerAgent" --install ~/Downloads/subtitle-checker-premiere-1.1.0.ccx
+"/Library/Application Support/Adobe/Adobe Desktop Common/RemoteComponents/UPI/UnifiedPluginInstallerAgent/UnifiedPluginInstallerAgent.app/Contents/MacOS/UnifiedPluginInstallerAgent" --install ~/Downloads/subtitle-checker-premiere-1.2.0.ccx
 ```
 
 #### 개발자 모드 (UXP Developer Tool)
@@ -88,21 +88,26 @@ macOS (터미널):
 4. **타임라인에 마커로 표시**: 수정할 자막마다 노란 마커가 생깁니다 (확인이 필요한 곳은 파란 마커). 마커 패널에서 하나씩 넘겨 보며 고치면 됩니다.
 5. **교정된 자막 저장**: 저장한 SRT를 프로젝트로 가져와(Ctrl/Cmd+I) 타임라인에 끌어다 놓으면 캡션 트랙으로 들어갑니다. 그래픽 자막은 마커를 보며 직접 고쳐 주세요.
 
-### AI 컨펌
+### 검수팀 리뷰
 
-1. 검토할 시퀀스를 엽니다. 일부만 볼 때는 인/아웃 점을 찍고 **검토 구간**을 '인·아웃 구간만'으로 고릅니다.
-2. 프레임 간격, 최대 프레임 수, 검토 초점, 요청사항(예: "자막은 하단 중앙, 로고는 오른쪽 위에 계속")을 정합니다. 아래에 예상 프레임 수와 비용이 나옵니다.
-3. **컨펌 요청** → 프레임을 뽑고 Claude가 봅니다 (API 방식은 보통 1~3분, 구독 방식은 2~5분).
-4. 판정, 총평, 수정 목록과 그 시점의 화면이 나옵니다. 시간을 누르면 그 위치로 이동합니다.
-5. **타임라인에 마커로 표시**하면 빨강(필수)·주황(권장)·파랑(참고) 마커가 생깁니다. **AI 마커 모두 지우기**는 이 플러그인이 만든 마커만 지웁니다.
+1. 처음 한 번: **설정** 탭의 **우리 채널 정보**에 채널 소개·타깃·톤앤매너를 적습니다 (밤샘 콘텐츠 컴퍼니 설정에 적은 내용을 옮기면 돼요). 검수팀이 이 기준으로 제안합니다.
+2. 멘트까지 보려면 **맞춤법** 탭에서 자막(SRT)을 먼저 불러옵니다. 자막이 곧 멘트로 쓰여요.
+3. 검토할 시퀀스를 엽니다. 일부만 볼 때는 인/아웃 점을 찍고 **검토 구간**을 '인·아웃 구간만'으로 고릅니다.
+4. **검수팀 리뷰** 탭에서 프레임 간격, 최대 프레임 수, 검토 초점, 요청사항(예: "이번 편은 더 웃기게, 로고는 오른쪽 위에 계속")을 정합니다.
+   - 전체 리뷰: 꼭 고칠 오류 + 더 좋게 만드는 제안
+   - 오류 위주: 맞춤법·오타·가독성
+   - 제안 위주: 자막 느낌·멘트·디자인·편집 호흡
+5. **검수팀에 리뷰 요청** → 프레임을 뽑아 보내고 검수팀이 봅니다 (API 방식은 보통 1~3분, 구독 방식은 2~5분).
+6. 판정과 총평, 그리고 시간순 의견이 나옵니다. 의견마다 담당 팀(검수팀·카피라이팅팀·디자인팀·영상제작팀·브랜딩팀), 지금 상태, 추천 수정안, 다른 느낌의 대안, 그 시점의 화면이 붙어요. 시간을 누르면 그 위치로 이동합니다.
+7. **타임라인에 마커로 표시**하면 빨강(필수)·주황(권장)·파랑(참고) 마커가 생기고, 마커 설명에 제안과 대안이 들어갑니다. **AI 마커 모두 지우기**는 이 플러그인이 만든 마커만 지웁니다.
 
-팁: 맞춤법 탭에서 자막을 먼저 불러오면 컨펌 때 자막 목록도 함께 보내서 화면과 대조하고, **불러온 자막마다 한 장씩** 옵션으로 자막이 바뀔 때마다 한 장씩 확인할 수 있어요.
+팁: **불러온 자막마다 한 장씩** 옵션을 켜면 자막이 바뀔 때마다 한 장씩 보내서, 자막마다 의견을 받기 좋아요.
 
 ## 알아 둘 점
 
 - Claude는 **정지 화면만** 봅니다. 소리, 움직임, 프레임과 프레임 사이 내용은 볼 수 없어요. 간격을 좁히면 더 꼼꼼해지지만 비용이 늘어납니다.
 - 프리미어 API로는 캡션 트랙의 글자를 바로 읽을 수 없어서 SRT로 내보낸 뒤 불러옵니다. 캡션이 컨펌용 프레임 이미지에 찍혀 나오는지는 프리미어 버전에 따라 다를 수 있어요.
-- **타임라인 그래픽 텍스트 읽기**는 프리미어 버전이나 그래픽 종류에 따라 일부 텍스트를 못 읽을 수 있어요. 그럴 때는 AI 컨펌(검토 초점: 자막·맞춤법 위주)으로 화면 속 글자를 검사하세요.
+- **타임라인 그래픽 텍스트 읽기**는 프리미어 버전이나 그래픽 종류에 따라 일부 텍스트를 못 읽을 수 있어요. 그럴 때는 검수팀 리뷰(검토 초점: 오류 위주)로 화면 속 글자를 검사하세요.
 - 구독 방식은 지금 Windows만 됩니다. Mac에서는 API 방식을 쓰세요.
 - 구독 방식은 구독 요금제의 사용 한도 안에서 돌아갑니다. Opus로 프레임을 많이 보내면 한도에 빨리 닿을 수 있어요.
 - API 방식 대략의 비용: Claude Opus 5.5로 프레임 40장 컨펌 한 번에 0.3~0.6달러, 자막 300줄 맞춤법 검사에 0.05~0.2달러. Sonnet 5.5는 절반, Haiku 5.5는 훨씬 저렴합니다 (설정 탭에서 모델 변경).

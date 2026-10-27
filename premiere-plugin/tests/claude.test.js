@@ -100,14 +100,18 @@ test("컨펌: 프레임 라벨·이미지 순서, 결과 정리", async () => {
   const fetch = fakeFetch([{ status: 200, body: reply({
     verdict: "수정 후 컨펌", summary: "좋아요", good_points: ["색감"],
     issues: [
-      { time: 99, category: "맞춤법", severity: "필수", current: "할께요", suggestion: "할게요", detail: "" },
+      { time: 99, team: "검수팀", category: "맞춤법", severity: "필수", current: "할께요", suggestion: "할게요", alternatives: [], detail: "" },
       { time: 1.4, category: "이상한값", severity: "몰라", current: "", suggestion: "", detail: "x" },
+      { time: 3, team: "없는팀", category: "멘트", severity: "권장", current: "안녕", suggestion: "안녕하세요 여러분", alternatives: ["하나", " ", "둘", "셋", "넷"], detail: "" },
     ],
   }) }], calls);
-  const res = await claude.reviewVideo({ apiKey: "k", model: "claude-opus-5-5", frames, segments: [{ id: 1, start: 1, text: "안녕\n하세요" }], brief: "밝게", focus: "text", info }, { fetch });
+  const channel = { about: "반려견 브이로그", audience: "", tone: "귀엽게" };
+  const res = await claude.reviewVideo({ apiKey: "k", model: "claude-opus-5-5", frames, segments: [{ id: 1, start: 1, text: "안녕\n하세요" }], brief: "밝게", focus: "text", channel, info }, { fetch });
   const content = calls[0].body.messages[0].content;
   assert.equal(content[0].type, "text");
   assert.ok(content[0].text.includes("시퀀스 01") && content[0].text.includes("밝게") && content[0].text.includes("안녕 / 하세요"));
+  assert.ok(content[0].text.includes("- 채널·브랜드: 반려견 브이로그\n- 톤앤매너: 귀엽게"), "채널 정보, 빈 칸은 뺌");
+  assert.match(calls[0].body.system, /검수팀장/);
   assert.deepEqual(content.slice(1, 5).map(c => c.type), ["text", "image", "text", "image"]);
   assert.ok(content[1].text.includes("[프레임 1] 0:01.5"));
   assert.deepEqual(content[4].source, { type: "base64", media_type: "image/png", data: "BBB" });
@@ -115,11 +119,15 @@ test("컨펌: 프레임 라벨·이미지 순서, 결과 정리", async () => {
 
   const r = res.review;
   assert.equal(r.verdict, "수정 후 컨펌");
-  assert.deepEqual(r.issues.map(i => i.time), [1.4, 6], "구간 밖 시간은 끝으로, 시간순 정렬");
+  assert.deepEqual(r.issues.map(i => i.time), [1.4, 3, 6], "구간 밖 시간은 끝으로, 시간순 정렬");
   assert.equal(r.issues[0].category, "기타");
   assert.equal(r.issues[0].severity, "참고");
+  assert.equal(r.issues[0].team, "검수팀", "팀이 없으면 분야로 정함");
+  assert.equal(r.issues[1].team, "카피라이팅팀", "모르는 팀 이름은 분야 담당 팀으로");
+  assert.deepEqual(r.issues[1].alternatives, ["하나", "둘", "셋"], "빈 대안 빼고 최대 3개");
+  assert.deepEqual(r.issues[2].alternatives, []);
   assert.equal(r.issues[0].frame, 0);
-  assert.equal(r.issues[1].frame, 1);
+  assert.equal(r.issues[2].frame, 1);
 });
 
 test("오류: 거절, 길이 초과, 키 오류, 재시도", async () => {

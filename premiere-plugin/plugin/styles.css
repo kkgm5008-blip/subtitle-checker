@@ -70,6 +70,7 @@ input[type="checkbox"] { margin-right: 6px; }
 .chip.sev-must { background-color: #6b2a24; color: #ffd3cc; }
 .chip.sev-should { background-color: #6b4a1c; color: #ffe2b3; }
 .chip.sev-info { background-color: #1f3d63; color: #cfe3ff; }
+.chip.team { background-color: #3d2f52; color: #e6d6ff; }
 .line { line-height: 1.6; margin: 2px 0; }
 .line b { color: #9a9a9a; font-weight: 600; margin-right: 4px; }
 .del { background-color: #6b2a24; color: #ffd3cc; text-decoration: line-through; }

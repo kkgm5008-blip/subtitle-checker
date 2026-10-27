@@ -56,7 +56,7 @@ function spellMarkers(rows) {
 
 function confirmReport(review, meta = {}) {
   const lines = [
-    "# AI 영상 컨펌 리포트",
+    "# 밤샘 콘텐츠 컴퍼니 검수팀 리뷰",
     "",
     `- 시퀀스: ${meta.sequence || ""}`,
     `- 검토 구간: ${formatClock(meta.start)} ~ ${formatClock(meta.end)} · 프레임 ${meta.frames || 0}장`,
@@ -72,12 +72,13 @@ function confirmReport(review, meta = {}) {
     review.goodPoints.forEach(g => lines.push(`- ${g}`));
     lines.push("");
   }
-  lines.push(`## 수정할 점 (${review.issues.length}개)`, "");
+  lines.push(`## 의견 (${review.issues.length}개)`, "");
   if (!review.issues.length) lines.push("- 없음");
   for (const i of review.issues) {
-    lines.push(`- [${formatClock(i.time)}] [${i.severity}] ${i.category}`);
+    lines.push(`- [${formatClock(i.time)}] [${i.severity}] ${i.team || "검수팀"} · ${i.category}`);
     if (i.current) lines.push(`  지금: ${i.current}`);
-    if (i.suggestion) lines.push(`  수정: ${i.suggestion}`);
+    if (i.suggestion) lines.push(`  제안: ${i.suggestion}`);
+    (i.alternatives || []).forEach((a, k) => lines.push(`  대안 ${k + 1}: ${a}`));
     if (i.detail) lines.push(`  이유: ${i.detail}`);
   }
   return lines.join("\n");
@@ -85,10 +86,15 @@ function confirmReport(review, meta = {}) {
 
 function confirmMarkers(review) {
   return review.issues.map(i => ({
-    name: `${AI_PREFIX} 컨펌·${i.severity}] ${clip(i.category + (i.current ? ": " + i.current : ""), 40)}`,
+    name: `${AI_PREFIX} 컨펌·${i.severity}] ${i.team || "검수팀"} · ${clip(i.category + (i.current ? ": " + i.current : ""), 40)}`,
     start: i.time,
     duration: 0,
-    comments: [i.current && `지금: ${i.current}`, i.suggestion && `수정: ${i.suggestion}`, i.detail && `이유: ${i.detail}`].filter(Boolean).join("\n"),
+    comments: [
+      i.current && `지금: ${i.current}`,
+      i.suggestion && `제안: ${i.suggestion}`,
+      ...(i.alternatives || []).map((a, k) => `대안 ${k + 1}: ${a}`),
+      i.detail && `이유: ${i.detail}`,
+    ].filter(Boolean).join("\n"),
     color: SEVERITY_COLOR[i.severity] || "BLUE",
   }));
 }

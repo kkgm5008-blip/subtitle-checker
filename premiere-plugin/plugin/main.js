@@ -15,6 +15,7 @@ const bridge = require("./lib/bridge.js");
 const DEFAULTS = {
   mode: "subscription", model: claude.DEFAULT_MODEL, engine: "claude", longEdge: 1280,
   range: "all", interval: 3, maxFrames: 40, perSegment: false, withSubs: true, focus: "all", brief: "",
+  channel: { about: "", audience: "", tone: "" },
 };
 const MAX_PAYLOAD = 24 * 1024 * 1024; // base64 이미지 합계 (API 요청 한도 32MB 아래로)
 const SEVERITY_CLASS = { 필수: "must", 권장: "should", 참고: "info" };
@@ -387,17 +388,18 @@ async function runConfirm() {
     const info = { name: state.seq.name, start: range.start, end: range.end, width: state.seq.width, height: state.seq.height, frameCount: frames.length };
     // 요청을 보낸 뒤에는 멈춰도 비용이 그대로라 멈추기 버튼을 숨김
     show("btnConfirmCancel", false);
-    const looking = `Claude가 프레임 ${frames.length}장을 보는 중… (보통 ${subscription() ? "2~5" : "1~3"}분)` + (trimmed ? " · 용량이 커서 일부 프레임만 보냈어요" : "");
+    const looking = `검수팀이 프레임 ${frames.length}장을 보는 중… (보통 ${subscription() ? "2~5" : "1~3"}분)` + (trimmed ? " · 용량이 커서 일부 프레임만 보냈어요" : "");
     say("confirmMsg", subscription() ? "구독 연결 프로그램으로 프레임 보내는 중…" : looking);
     const res = await claude.reviewVideo({
-      mode: state.prefs.mode, apiKey: state.apiKey, model: state.prefs.model, frames, segments: segs, brief: state.prefs.brief, focus: state.prefs.focus, info,
+      mode: state.prefs.mode, apiKey: state.apiKey, model: state.prefs.model, frames, segments: segs,
+      brief: state.prefs.brief, focus: state.prefs.focus, channel: state.prefs.channel, info,
     }, {
       onUpload: (i, n) => say("confirmMsg", i < n ? `구독 연결 프로그램으로 프레임 보내는 중… ${i}/${n}` : looking),
     });
     state.review = res.review;
     state.reviewMeta = { sequence: info.name, start: info.start, end: info.end, frames: frames.length, model: res.model, cost: res.cost };
     makeThumbs(frames);
-    say("confirmMsg", `컨펌을 받았어요${res.cost ? ` · 비용 약 ${dollars(res.cost.dollars)}` : ""}.` + (trimmed ? " (용량 때문에 프레임 일부만 보냈어요. 설정에서 프레임 크기를 줄이면 더 많이 보낼 수 있어요.)" : ""), "ok");
+    say("confirmMsg", `검수팀 리뷰가 왔어요${res.cost ? ` · 비용 약 ${dollars(res.cost.dollars)}` : ""}.` + (trimmed ? " (용량 때문에 프레임 일부만 보냈어요. 설정에서 프레임 크기를 줄이면 더 많이 보낼 수 있어요.)" : ""), "ok");
     renderReview();
   } catch (e) {
     say("confirmMsg", e.message, "err");
@@ -419,15 +421,16 @@ function renderReview() {
   show("confirmResult", true);
   const v = $("verdict");
   v.className = "verdict v-" + (VERDICT_CLASS[r.verdict] || "fix");
-  v.textContent = `${VERDICT_ICON[r.verdict] || ""} ${r.verdict}`;
+  v.textContent = `${VERDICT_ICON[r.verdict] || ""} 검수팀 판정: ${r.verdict}`;
   const good = r.goodPoints.length ? `<div class="notes">${r.goodPoints.map(g => "👍 " + esc(g)).join("<br>")}</div>` : "";
   $("reviewSummary").innerHTML = `<div>${esc(r.summary)}</div>${good}`;
-  if (!r.issues.length) { $("issueList").innerHTML = `<div class="hint">수정할 점이 없어요.</div>`; return; }
+  if (!r.issues.length) { $("issueList").innerHTML = `<div class="hint">고칠 점이 없어요. 그대로 올려도 좋아요.</div>`; return; }
   $("issueList").innerHTML = r.issues.map(i => {
     const thumb = state.thumbs[i.frame] ? `<img class="thumb" src="${state.thumbs[i.frame]}">` : "";
-    return `<div class="card"><div class="cardhead"><button data-seek="${i.time}">${srt.formatClock(i.time)}</button><span class="chip sev-${SEVERITY_CLASS[i.severity] || "info"}">${esc(i.severity)}</span><span class="chip">${esc(i.category)}</span></div>` +
+    const alts = i.alternatives.length ? `<div class="notes">${i.alternatives.map((a, k) => `대안 ${k + 1}. ${esc(a)}`).join("<br>")}</div>` : "";
+    return `<div class="card"><div class="cardhead"><button data-seek="${i.time}">${srt.formatClock(i.time)}</button><span class="chip sev-${SEVERITY_CLASS[i.severity] || "info"}">${esc(i.severity)}</span><span class="chip team">${esc(i.team)}</span><span class="chip">${esc(i.category)}</span></div>` +
       (i.current ? `<div class="line"><b>지금</b>${esc(i.current)}</div>` : "") +
-      (i.suggestion ? `<div class="line"><b>수정</b>${esc(i.suggestion)}</div>` : "") +
+      (i.suggestion ? `<div class="line"><b>제안</b>${esc(i.suggestion)}</div>` : "") + alts +
       (i.detail ? `<div class="notes">${esc(i.detail)}</div>` : "") + thumb + `</div>`;
   }).join("");
 }
@@ -517,6 +520,8 @@ function fillForm() {
   set("range", p.range); set("interval", p.interval); set("maxFrames", p.maxFrames); set("focus", p.focus);
   $("brief").value = p.brief || "";
   $("withSubs").checked = !!p.withSubs;
+  const ch = p.channel || {};
+  $("chAbout").value = ch.about || ""; $("chAudience").value = ch.audience || ""; $("chTone").value = ch.tone || "";
   $("perSegment").checked = false;
   $("perSegment").disabled = true;
   if (state.apiKey) $("apiKey").value = state.apiKey;
@@ -566,6 +571,10 @@ function bind() {
   $("btnGetKey").addEventListener("click", () => host.openExternal("https://console.anthropic.com/settings/keys"));
   $("model").addEventListener("change", () => { state.prefs.model = $("model").value; savePrefs(); updateEstimate(); });
   $("longEdge").addEventListener("change", () => { state.prefs.longEdge = +$("longEdge").value; savePrefs(); updateEstimate(); });
+  ["chAbout", "chAudience", "chTone"].forEach(id => $(id).addEventListener("change", () => {
+    state.prefs.channel = { about: $("chAbout").value.trim(), audience: $("chAudience").value.trim(), tone: $("chTone").value.trim() };
+    savePrefs();
+  }));
 }
 
 window.addEventListener("load", async () => {
