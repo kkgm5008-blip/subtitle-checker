@@ -127,6 +127,26 @@
   <!-- 설정 -->
   <section class="pane" id="pane-settings" style="display:none">
     <div class="box">
+      <div class="field">
+        <span>Claude 사용 방식</span>
+        <select id="mode">
+          <option value="subscription">내 Claude 구독 (PC의 Claude Code · 추가 비용 없음)</option>
+          <option value="api">API 키 (쓴 만큼 따로 과금)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="box" id="subBox">
+      <div class="label">내 Claude 구독으로 쓰기</div>
+      <div class="hint">이 PC에 설치한 Claude Code가 Claude 구독(Pro·Max)으로 검사합니다. 구독 사용량에서 차감되고 따로 돈이 들지 않아요. 처음 한 번만 준비하면 됩니다.</div>
+      <div class="hint">1. PowerShell에서 <b>irm https://claude.ai/install.ps1 | iex</b> 로 Claude Code를 설치하고, <b>claude</b> 를 한 번 실행해 내 Claude 계정으로 로그인합니다.<br>2. 설치 묶음(zip)에 들어 있는 <b>claude-bridge.ps1</b>을 마우스 오른쪽 버튼으로 눌러 <b>PowerShell에서 실행</b>. 프리미어를 쓰는 동안 그 창을 켜 둡니다.<br>3. 아래 <b>구독 연결 확인</b>.</div>
+      <div class="buttons">
+        <button class="primary" id="btnTestSub">구독 연결 확인</button>
+      </div>
+      <div class="msg" id="subMsg"></div>
+    </div>
+
+    <div class="box" id="apiBox">
       <div class="label">Anthropic API 키</div>
       <div class="hint">Claude를 쓰려면 API 키가 필요해요. 키는 이 컴퓨터의 보안 저장소에만 저장되고, 요청은 이 컴퓨터에서 Anthropic으로 바로 갑니다.</div>
       <input type="password" id="apiKey" placeholder="sk-ant-...">
@@ -151,12 +171,12 @@
           <option value="1600">1600px (작은 글씨까지)</option>
         </select>
       </div>
-      <div class="hint">대략의 비용: Opus 5.5로 프레임 40장 컨펌 한 번에 0.3~0.6달러, 자막 300줄 맞춤법 검사에 0.05~0.2달러. Sonnet 5.5는 절반입니다.</div>
+      <div class="hint">구독 방식: Opus는 사용량을 많이 써요. 구독 한도에 자주 걸리면 Sonnet으로 바꾸세요. Pro 요금제에서 Opus가 안 되면 Sonnet을 고르세요.<br>API 방식 대략의 비용: Opus 5.5로 프레임 40장 컨펌 한 번에 0.3~0.6달러, 자막 300줄 맞춤법 검사에 0.05~0.2달러. Sonnet 5.5는 절반입니다.</div>
     </div>
 
     <div class="box">
       <div class="label">보내는 내용</div>
-      <div class="hint">컨펌을 누르면 뽑은 프레임 이미지, 요청사항, (선택 시) 자막 목록이 Anthropic API로 전송됩니다. 맞춤법 검사는 자막 글자만 보냅니다. 네이버 엔진을 고르면 자막 글자가 네이버로 갑니다.</div>
+      <div class="hint">컨펌을 누르면 뽑은 프레임 이미지, 요청사항, (선택 시) 자막 목록이 Claude로 전송됩니다 (구독 방식은 PC의 Claude Code를 거쳐서). 맞춤법 검사는 자막 글자만 보냅니다. 네이버 엔진을 고르면 자막 글자가 네이버로 갑니다.</div>
     </div>
   </section>
 </body>

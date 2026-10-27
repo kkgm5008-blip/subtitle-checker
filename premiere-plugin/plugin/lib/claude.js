@@ -1,22 +1,27 @@
 "use strict";
 /*
- * Claude API 호출: 자막 맞춤법 검사와 영상 컨펌(프레임 + 자막 검토).
+ * Claude 호출: 자막 맞춤법 검사와 영상 컨펌(프레임 + 자막 검토).
  *
- * Adobe UXP는 Anthropic SDK가 지원하는 런타임(Node, 브라우저 등)이 아니고
- * 이 플러그인은 빌드 단계 없이 그대로 설치되므로, Messages API를 fetch로 직접 호출합니다.
+ * 두 가지 방식:
+ * - "subscription": PC의 Claude Code(내 Claude 구독)로 실행. bridge.js 참고.
+ * - "api": Anthropic API 키로 Messages API 호출 (사용한 만큼 과금).
+ *   Adobe UXP는 Anthropic SDK가 지원하는 런타임(Node, 브라우저 등)이 아니고
+ *   이 플러그인은 빌드 단계 없이 그대로 설치되므로, Messages API를 fetch로 직접 호출합니다.
  */
 
 const { formatClock } = require("./srt.js");
+const bridge = require("./bridge.js");
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2026-10-21";
 const FALLBACK_BETA = "server-side-fallback-2026-07-01";
 
 // 가격: 100만 토큰당 달러 (입력 / 출력)
+// alias: 구독 모드에서 Claude Code에 넘기는 모델 이름
 const MODELS = {
-  "claude-opus-5-5": { label: "Claude Opus 5.5 (가장 꼼꼼함 · 기본)", input: 4, output: 20, fallback: true },
-  "claude-sonnet-5-5": { label: "Claude Sonnet 5.5 (절반 가격)", input: 2, output: 10, fallback: true },
-  "claude-haiku-5-5": { label: "Claude Haiku 5.5 (가장 저렴 · 맞춤법용)", input: 0.1, output: 0.5, fallback: false },
+  "claude-opus-5-5": { label: "Claude Opus 5.5 (가장 꼼꼼함 · 기본)", alias: "opus", input: 4, output: 20, fallback: true },
+  "claude-sonnet-5-5": { label: "Claude Sonnet 5.5 (빠름 · API 절반 가격)", alias: "sonnet", input: 2, output: 10, fallback: true },
+  "claude-haiku-5-5": { label: "Claude Haiku 5.5 (가장 가벼움 · 맞춤법용)", alias: "haiku", input: 0.1, output: 0.5, fallback: false },
 };
 const DEFAULT_MODEL = "claude-opus-5-5";
 
@@ -120,6 +125,12 @@ function usageCost(model, usage) {
 }
 
 async function ask(params, opts) {
+  if (params.mode === "subscription") {
+    const { result } = await bridge.run({
+      system: params.system, content: params.content, schema: params.schema, model: modelInfo(params.model).alias,
+    }, opts);
+    return { result, cost: null, model: params.model };
+  }
   const request = buildRequest(params);
   const data = await send(request, opts);
   return { result: readJson(data), cost: usageCost(request.body.model, data.usage), model: data.model || request.body.model };
@@ -195,9 +206,9 @@ function spellPrompt(batch) {
  * @param {Array<{id:number,start:?number,text:string}>} batch
  * @returns {Promise<{fixes: Map<number,{corrected:string,issues:Array}>, cost}>}
  */
-async function checkSpelling({ apiKey, model, batch }, opts) {
+async function checkSpelling({ mode, apiKey, model, batch }, opts) {
   const { result, cost } = await ask({
-    apiKey, model, system: SPELL_SYSTEM, schema: SPELL_SCHEMA, effort: "medium", maxTokens: 16000,
+    mode, apiKey, model, system: SPELL_SYSTEM, schema: SPELL_SCHEMA, effort: "medium", maxTokens: 16000,
     content: [{ type: "text", text: spellPrompt(batch) }],
   }, opts);
   return { fixes: normalizeFixes(result, batch), cost };
@@ -306,7 +317,7 @@ function confirmContent(p) {
 
 async function reviewVideo(p, opts) {
   const { result, cost, model } = await ask({
-    apiKey: p.apiKey, model: p.model, system: CONFIRM_SYSTEM, schema: CONFIRM_SCHEMA, effort: "high", maxTokens: 32000,
+    mode: p.mode, apiKey: p.apiKey, model: p.model, system: CONFIRM_SYSTEM, schema: CONFIRM_SCHEMA, effort: "high", maxTokens: 32000,
     content: confirmContent(p),
   }, opts);
   return { review: normalizeReview(result, p.frames, p.info), cost, model };
@@ -338,9 +349,9 @@ function normalizeReview(r, frames, info) {
 }
 
 /** 연결 테스트: 가장 작은 요청 */
-async function ping({ apiKey, model }, opts) {
+async function ping({ mode, apiKey, model }, opts) {
   const { result } = await ask({
-    apiKey, model, effort: "low", maxTokens: 2000,
+    mode, apiKey, model, effort: "low", maxTokens: 2000,
     system: "연결 테스트입니다. ok를 true로 답하세요.",
     schema: { type: "object", additionalProperties: false, required: ["ok"], properties: { ok: { type: "boolean" } } },
     content: [{ type: "text", text: "연결 확인" }],

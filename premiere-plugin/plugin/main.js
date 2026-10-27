@@ -10,9 +10,10 @@ const report = require("./lib/report.js");
 const sampling = require("./lib/sampling.js");
 const pr = require("./lib/premiere.js");
 const host = require("./lib/host.js");
+const bridge = require("./lib/bridge.js");
 
 const DEFAULTS = {
-  model: claude.DEFAULT_MODEL, engine: "claude", longEdge: 1280,
+  mode: "subscription", model: claude.DEFAULT_MODEL, engine: "claude", longEdge: 1280,
   range: "all", interval: 3, maxFrames: 40, perSegment: false, withSubs: true, focus: "all", brief: "",
 };
 const MAX_PAYLOAD = 24 * 1024 * 1024; // base64 이미지 합계 (API 요청 한도 32MB 아래로)
@@ -71,8 +72,11 @@ function setBusy(on, cancelId) {
   if (cancelId) show(cancelId, on);
 }
 
+/** "subscription": PC의 Claude Code(내 구독), "api": API 키 */
+const subscription = () => state.prefs.mode === "subscription";
+
 function needKey(msgId) {
-  if (state.apiKey) return false;
+  if (subscription() || state.apiKey) return false;
   say(msgId, "설정 탭에서 Anthropic API 키를 먼저 저장해 주세요.", "err");
   return true;
 }
@@ -84,8 +88,15 @@ function showTab(name) {
 }
 
 function updateKeyNotice() {
-  const needs = !state.apiKey && (state.prefs.engine === "claude");
+  const needs = !subscription() && !state.apiKey && (state.prefs.engine === "claude");
   show("keyNotice", needs);
+}
+
+function updateModeUI() {
+  show("subBox", subscription());
+  show("apiBox", !subscription());
+  updateKeyNotice();
+  updateEstimate();
 }
 
 async function refreshSequence() {
@@ -124,6 +135,7 @@ function setSegments(list, source) {
 }
 
 async function readTimeline() {
+  if (state.busy) return;
   setBusy(true);
   say("spellMsg", "타임라인의 그래픽 클립을 읽는 중…");
   try {
@@ -159,6 +171,7 @@ async function openFile() {
 /* ───────── 맞춤법 검사 ───────── */
 
 async function runSpell() {
+  if (state.busy) return;
   if (!state.segments.length) { say("spellMsg", "먼저 자막을 불러와 주세요.", "err"); return; }
   const engine = $("engine").value;
   if (engine === "claude" && needKey("spellMsg")) return;
@@ -168,16 +181,19 @@ async function runSpell() {
   setBusy(true, "btnSpellCancel");
   try {
     if (engine === "claude") {
-      const batches = claude.batchSegments(state.segments.map(s => ({ id: s.id, start: s.start, text: s.text })));
+      const list = state.segments.map(s => ({ id: s.id, start: s.start, text: s.text }));
+      // 구독 모드는 묶음마다 Claude Code를 새로 띄우므로 크게 묶음
+      const batches = subscription() ? claude.batchSegments(list, 20000, 250) : claude.batchSegments(list);
       for (let b = 0; b < batches.length; b++) {
         if (state.cancel) break;
-        say("spellMsg", `Claude가 검사 중… ${b + 1}/${batches.length}묶음`);
+        say("spellMsg", `${subscription() ? "Claude Code(내 구독)로" : "Claude가"} 검사 중… ${b + 1}/${batches.length}묶음`);
         try {
-          const res = await claude.checkSpelling({ apiKey: state.apiKey, model: state.prefs.model, batch: batches[b] });
+          const res = await claude.checkSpelling({ mode: state.prefs.mode, apiKey: state.apiKey, model: state.prefs.model, batch: batches[b] });
           res.fixes.forEach((fix, id) => Object.assign(byId.get(id), fix));
           if (res.cost) cost += res.cost.dollars;
         } catch (e) {
-          if ([401, 403, 404].includes(e.status)) throw e;
+          // 키·연결 문제는 다음 묶음도 똑같이 실패하므로 바로 멈춤
+          if ([401, 403, 404].includes(e.status) || (e.name === "BridgeError" && e.code !== "bad_json")) throw e;
           batches[b].forEach(s => (byId.get(s.id).error = e.message));
         }
       }
@@ -196,7 +212,8 @@ async function runSpell() {
         await new Promise(ok => setTimeout(ok, 150)); // 너무 빠른 연속 호출 방지
       }
     }
-    state.spell = { rows, engine: engine === "claude" ? claude.MODELS[state.prefs.model].label : "네이버 맞춤법 검사기", source: state.source, cost };
+    const label = claude.MODELS[state.prefs.model].label.split(" (")[0] + (subscription() ? " · 내 구독" : " · API");
+    state.spell = { rows, engine: engine === "claude" ? label : "네이버 맞춤법 검사기", source: state.source, cost };
     const failed = rows.filter(r => r.error).length;
     say("spellMsg", (state.cancel ? "중간에 멈췄어요. " : "검사를 마쳤어요. ") + (failed ? `${failed}개 자막은 검사하지 못했어요.` : ""), failed ? "err" : "ok");
     renderSpell();
@@ -320,7 +337,8 @@ function updateEstimate() {
   const cost = (input * info.input + output * info.output) / 1e6;
   const r = confirmRange();
   const note = $("range").value === "inout" && !state.seq.hasInOut ? " (인·아웃이 없어 전체로 검토)" : "";
-  $("estimate").textContent = `${srt.formatClock(r.start)}~${srt.formatClock(r.end)}${note} · 프레임 ${n}장 (${size.width}x${size.height}) · 예상 비용 약 ${dollars(cost)}`;
+  const price = subscription() ? "내 Claude 구독 사용량에서 차감 (추가 비용 없음)" : `예상 비용 약 ${dollars(cost)}`;
+  $("estimate").textContent = `${srt.formatClock(r.start)}~${srt.formatClock(r.end)}${note} · 프레임 ${n}장 (${size.width}x${size.height}) · ${price}`;
 }
 
 function readConfirmForm() {
@@ -343,22 +361,25 @@ function fitPayload(frames) {
 }
 
 async function runConfirm() {
+  if (state.busy) return;
   if (needKey("confirmMsg")) return;
   readConfirmForm();
-  await refreshSequence();
-  if (!state.seq) { say("confirmMsg", "열려 있는 시퀀스가 없어요.", "err"); return; }
-  const times = plannedTimes();
-  const range = confirmRange();
-  const size = sampling.frameSize(state.seq.width, state.seq.height, state.prefs.longEdge);
+  // 첫 await 전에 바쁨 표시 (빠르게 두 번 눌러도 한 번만 실행)
   setBusy(true, "btnConfirmCancel");
   try {
+    await refreshSequence();
+    if (!state.seq) { say("confirmMsg", "열려 있는 시퀀스가 없어요.", "err"); return; }
+    const times = plannedTimes();
+    const range = confirmRange();
+    const size = sampling.frameSize(state.seq.width, state.seq.height, state.prefs.longEdge);
     const { sequence } = await pr.getActive();
     const raw = await pr.exportFrames(sequence, times, size, {
       onProgress: (i, n) => say("confirmMsg", `프레임 뽑는 중… ${i}/${n}`),
       isCancelled: () => state.cancel,
     });
     let frames = raw.map(f => ({ time: f.time, mediaType: f.mediaType, data: base64.encode(f.bytes), bytes: f.bytes }));
-    const fitted = fitPayload(frames);
+    // API 요청에는 32MB 한도가 있어서 줄임 (구독 모드는 파일로 보내서 한도 없음)
+    const fitted = subscription() ? frames : fitPayload(frames);
     const trimmed = fitted.length < frames.length;
     frames = fitted;
     if (state.cancel) throw new Error("취소했어요.");
@@ -366,9 +387,12 @@ async function runConfirm() {
     const info = { name: state.seq.name, start: range.start, end: range.end, width: state.seq.width, height: state.seq.height, frameCount: frames.length };
     // 요청을 보낸 뒤에는 멈춰도 비용이 그대로라 멈추기 버튼을 숨김
     show("btnConfirmCancel", false);
-    say("confirmMsg", `Claude가 프레임 ${frames.length}장을 보는 중… (보통 1~3분)` + (trimmed ? " · 용량이 커서 일부 프레임만 보냈어요" : ""));
+    const looking = `Claude가 프레임 ${frames.length}장을 보는 중… (보통 ${subscription() ? "2~5" : "1~3"}분)` + (trimmed ? " · 용량이 커서 일부 프레임만 보냈어요" : "");
+    say("confirmMsg", subscription() ? "구독 연결 프로그램으로 프레임 보내는 중…" : looking);
     const res = await claude.reviewVideo({
-      apiKey: state.apiKey, model: state.prefs.model, frames, segments: segs, brief: state.prefs.brief, focus: state.prefs.focus, info,
+      mode: state.prefs.mode, apiKey: state.apiKey, model: state.prefs.model, frames, segments: segs, brief: state.prefs.brief, focus: state.prefs.focus, info,
+    }, {
+      onUpload: (i, n) => say("confirmMsg", i < n ? `구독 연결 프로그램으로 프레임 보내는 중… ${i}/${n}` : looking),
     });
     state.review = res.review;
     state.reviewMeta = { sequence: info.name, start: info.start, end: info.end, frames: frames.length, model: res.model, cost: res.cost };
@@ -453,13 +477,28 @@ async function saveKey() {
   say("keyMsg", key ? (where === "secure" ? "키를 보안 저장소에 저장했어요." : "키를 저장했어요 (보안 저장소를 쓸 수 없어 플러그인 저장소에 저장).") : "키를 지웠어요.", "ok");
 }
 
+async function testSubscription() {
+  say("subMsg", "구독 연결 프로그램 확인 중…");
+  setBusy(true);
+  try {
+    const h = await bridge.health();
+    say("subMsg", `연결 프로그램 확인 (${h.version || "Claude Code"}). Claude에게 짧게 물어보는 중…`);
+    await claude.ping({ mode: "subscription", model: state.prefs.model });
+    say("subMsg", `연결됐어요. 내 구독으로 ${claude.MODELS[state.prefs.model].label.split(" (")[0]}을(를) 씁니다.`, "ok");
+  } catch (e) {
+    say("subMsg", e.message, "err");
+  } finally {
+    setBusy(false);
+  }
+}
+
 async function testKey() {
   const key = $("apiKey").value.trim() || state.apiKey;
   if (!key) { say("keyMsg", "키를 먼저 넣어 주세요.", "err"); return; }
   say("keyMsg", "연결 확인 중…");
   setBusy(true);
   try {
-    await claude.ping({ apiKey: key, model: state.prefs.model });
+    await claude.ping({ mode: "api", apiKey: key, model: state.prefs.model });
     say("keyMsg", `연결됐어요 (${claude.MODELS[state.prefs.model].label}).`, "ok");
   } catch (e) {
     say("keyMsg", e.message, "err");
@@ -474,7 +513,7 @@ function fillForm() {
   const p = state.prefs;
   $("model").innerHTML = Object.keys(claude.MODELS).map(id => `<option value="${id}"${id === p.model ? " selected" : ""}>${esc(claude.MODELS[id].label)}</option>`).join("");
   const set = (id, v) => { $(id).value = String(v); };
-  set("model", p.model); set("engine", p.engine); set("longEdge", p.longEdge);
+  set("mode", p.mode); set("model", p.model); set("engine", p.engine); set("longEdge", p.longEdge);
   set("range", p.range); set("interval", p.interval); set("maxFrames", p.maxFrames); set("focus", p.focus);
   $("brief").value = p.brief || "";
   $("withSubs").checked = !!p.withSubs;
@@ -520,6 +559,8 @@ function bind() {
   $("btnConfirmReport").addEventListener("click", saveConfirmReport);
   $("btnClearMarkers").addEventListener("click", clearMarkers);
 
+  $("mode").addEventListener("change", () => { state.prefs.mode = $("mode").value; savePrefs(); updateModeUI(); });
+  $("btnTestSub").addEventListener("click", testSubscription);
   $("btnSaveKey").addEventListener("click", saveKey);
   $("btnTestKey").addEventListener("click", testKey);
   $("btnGetKey").addEventListener("click", () => host.openExternal("https://console.anthropic.com/settings/keys"));
@@ -530,9 +571,10 @@ function bind() {
 window.addEventListener("load", async () => {
   state.prefs = host.loadPrefs(DEFAULTS);
   if (!claude.MODELS[state.prefs.model]) state.prefs.model = claude.DEFAULT_MODEL;
+  if (state.prefs.mode !== "api") state.prefs.mode = "subscription";
   state.apiKey = await host.loadApiKey();
   fillForm();
   bind();
-  updateKeyNotice();
+  updateModeUI();
   await refreshSequence();
 });

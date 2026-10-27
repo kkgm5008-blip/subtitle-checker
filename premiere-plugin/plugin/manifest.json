@@ -2,7 +2,7 @@
   "manifestVersion": 5,
   "id": "com.kkgm5008.subtitle-checker",
   "name": "자막 맞춤법 · AI 컨펌",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "index.html",
   "host": {
     "app": "premierepro",
@@ -10,11 +10,7 @@
   },
   "requiredPermissions": {
     "network": {
-      "domains": [
-        "https://api.anthropic.com",
-        "https://search.naver.com",
-        "https://m.search.naver.com"
-      ]
+      "domains": "all"
     },
     "localFileSystem": "request",
     "launchProcess": {

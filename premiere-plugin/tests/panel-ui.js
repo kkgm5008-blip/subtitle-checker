@@ -118,16 +118,10 @@ const uxp = {
   shell: { openExternal: async url => { log.opened = url; return ""; } },
 };
 
-/* ---------- fake Anthropic API ---------- */
+/* ---------- fake Anthropic API + fake 구독 연결 프로그램 ---------- */
 const apiCalls = [];
-global.fetch = async (url, init) => {
-  const body = JSON.parse(init.body);
-  apiCalls.push({ url, headers: init.headers, body });
-  assert.equal(url, "https://api.anthropic.com/v1/messages");
-  const props = body.output_config.format.schema.properties;
-  let out;
-  if (props.fixes) {
-    const text = body.messages[0].content[0].text;
+const bridgeCalls = [];
+function spellAnswer(text) {
     const fixes = [];
     for (const m of text.matchAll(/\[(\d+)\][^"]*"((?:[^"\\]|\\.)*)"/g)) {
       const t = JSON.parse('"' + m[2] + '"');
@@ -135,13 +129,37 @@ global.fetch = async (url, init) => {
         fixes.push({ id: +m[1], corrected: t.replace("안되요", "안 돼요").replace("볼께요", "볼게요"), issues: [{ type: "맞춤법", before: "안되요", after: "안 돼요", reason: "‘되어요’의 준말" }] });
       }
     }
-    out = { fixes };
+    return { fixes };
+}
+const REVIEW = { verdict: "수정 후 컨펌", summary: "전체 흐름은 좋아요. 자막 오타 하나만 고치면 됩니다.", good_points: ["컷 호흡이 좋아요"],
+  issues: [{ time: 15.5, category: "맞춤법", severity: "필수", current: "볼께요", suggestion: "볼게요", detail: "‘-ㄹ게요’가 표준" },
+    { time: 22.5, category: "화면 구성", severity: "참고", current: "로고가 잘림", suggestion: "로고를 안쪽으로", detail: "세이프 영역" }] };
+const reply = (status, obj) => ({ ok: status === 200, status, headers: { get: () => null }, text: async () => JSON.stringify(obj), json: async () => obj });
+let bridgeUp = true;
+global.fetch = async (url, init) => {
+  if (url.startsWith("http://127.0.0.1:51234")) {
+    if (!bridgeUp) throw new TypeError("fetch failed");
+    const p = new URL(url).pathname;
+    assert.equal(init.headers["X-Subtitle-Checker"], "1");
+    bridgeCalls.push({ method: init.method, path: p, body: init.body });
+    if (p === "/health") return reply(200, { ok: true, version: "2.1.300 (Claude Code)" });
+    if (p === "/jobs") return reply(200, { ok: true, id: "j" + bridgeCalls.length });
+    if (/\/files\//.test(p)) { assert.equal(init.body, "/9j/AQID"); return reply(200, { ok: true }); }
+    const job = JSON.parse(init.body);
+    const out = /"fixes"/.test(job.prompt) ? spellAnswer(job.prompt) : /"verdict"/.test(job.prompt) ? REVIEW : { ok: true };
+    return reply(200, { type: "result", subtype: "success", is_error: false, result: JSON.stringify(out) });
+  }
+  const body = JSON.parse(init.body);
+  apiCalls.push({ url, headers: init.headers, body });
+  assert.equal(url, "https://api.anthropic.com/v1/messages");
+  const props = body.output_config.format.schema.properties;
+  let out;
+  if (props.fixes) {
+    out = spellAnswer(body.messages[0].content[0].text);
   } else if (props.verdict) {
     const imgs = body.messages[0].content.filter(c => c.type === "image");
     assert.ok(imgs.length > 0 && imgs.every(i => i.source.media_type === "image/jpeg" && i.source.data === "/9j/AQID"));
-    out = { verdict: "수정 후 컨펌", summary: "전체 흐름은 좋아요. 자막 오타 하나만 고치면 됩니다.", good_points: ["컷 호흡이 좋아요"],
-      issues: [{ time: 15.5, category: "맞춤법", severity: "필수", current: "볼께요", suggestion: "볼게요", detail: "‘-ㄹ게요’가 표준" },
-        { time: 22.5, category: "화면 구성", severity: "참고", current: "로고가 잘림", suggestion: "로고를 안쪽으로", detail: "세이프 영역" }] };
+    out = REVIEW;
   } else {
     out = { ok: true };
   }
@@ -178,7 +196,43 @@ async function until(pred, what) {
   window.dispatchEvent(new window.Event("load"));
   await until(() => /브이로그 01/.test($("seqLine").textContent), "sequence line");
   console.log("seqLine:", $("seqLine").textContent);
+
+  // spell: no segments yet
+  click("btnSpellRun"); await settle();
+  assert.match($("spellMsg").textContent, /먼저 자막/);
+
+  // ── 구독 모드 (기본값): API 키 없이 PC의 Claude Code로 ──
+  assert.equal($("mode").value, "subscription");
+  assert.equal($("keyNotice").style.display, "none", "no key notice in subscription mode");
+  assert.equal($("subBox").style.display, "");
+  assert.equal($("apiBox").style.display, "none");
+  bridgeUp = false;
+  click("btnTestSub"); await until(() => /꺼져 있어요/.test($("subMsg").textContent), "bridge down message");
+  bridgeUp = true;
+  click("btnTestSub"); await until(() => /연결됐어요/.test($("subMsg").textContent), "bridge ok");
+  console.log("subMsg:", $("subMsg").textContent);
+  openFile = { name: "구독.srt", read: async () => "1\n00:00:01,000 --> 00:00:02,000\n그럼 안되요\n" };
+  click("btnOpenFile"); await until(() => /1개/.test($("sourceLine").textContent), "srt loaded (sub)");
+  click("btnSpellRun"); await until(() => $("spellResult").style.display === "", "spell result (sub)");
+  console.log("spellSummary (sub):", $("spellSummary").textContent);
+  assert.match($("spellSummary").textContent, /수정 제안 1개 · Claude Opus 5\.5 · 내 구독/);
+  assert.doesNotMatch($("spellSummary").textContent, /\$/);
+  assert.equal(apiCalls.length, 0, "no API calls in subscription mode");
+  change("range", "all"); await settle();
+  assert.match($("estimate").textContent, /구독 사용량에서 차감/);
+  click("btnConfirm"); await until(() => /컨펌을 받았어요/.test($("confirmMsg").textContent), "confirm (sub)");
+  const puts = bridgeCalls.filter(c => c.method === "PUT");
+  console.log("bridge uploads:", puts.length, "| verdict:", $("verdict").textContent);
+  assert.ok(puts.length > 0);
+  assert.equal(apiCalls.length, 0);
+  assert.doesNotMatch($("confirmMsg").textContent, /비용/);
+
+  // ── API 키 모드로 바꾸기 ──
+  change("mode", "api"); await settle();
+  assert.equal($("subBox").style.display, "none");
+  assert.equal($("apiBox").style.display, "");
   assert.equal($("keyNotice").style.display, "", "key notice shown without key");
+  log.exports.length = 0;
 
   // settings: bad key, then good key
   $("apiKey").value = "abc"; click("btnSaveKey"); await settle();
@@ -191,9 +245,6 @@ async function until(pred, what) {
   assert.match(log.opened, /console\.anthropic\.com/);
   assert.equal($("model").options.length, 3);
 
-  // spell: no segments yet
-  click("btnSpellRun"); await settle();
-  assert.match($("spellMsg").textContent, /먼저 자막/);
 
   // open SRT
   openFile = { name: "브이로그.srt", read: async () => "1\n00:00:01,000 --> 00:00:02,000\n그럼 안되요\n\n2\n00:00:03,000 --> 00:00:04,000\n좋아요\n\n3\n00:00:15,000 --> 00:00:16,000\n찍어볼께요\n" };
@@ -237,16 +288,15 @@ async function until(pred, what) {
   assert.equal($("spellResult").style.display, "none");
 
   // confirm: in/out range, per segment
-  click("btnConfirm"); // tab content works even if hidden
   change("range", "inout"); change("interval", "5"); change("maxFrames", "20");
   console.log("estimate:", $("estimate").textContent);
   assert.match($("estimate").textContent, /0:10\.0~0:30\.0/);
-  await until(() => $("confirmResult").style.display === "", "confirm result");
-  // first click ran with previous form values; run again with in/out
   log.exports.length = 0;
-  click("btnConfirm"); await until(() => log.exports.length > 0 && /컨펌을 받았어요/.test($("confirmMsg").textContent), "confirm 2");
+  // 두 번 눌러도 한 번만 실행
+  click("btnConfirm"); click("btnConfirm"); await until(() => log.exports.length > 0 && /컨펌을 받았어요/.test($("confirmMsg").textContent), "confirm 2");
   console.log("exports:", log.exports.map(e => e.t).join(","), log.exports[0].w + "x" + log.exports[0].h);
   assert.ok(log.exports.every(e => e.t >= 10 && e.t < 30));
+  assert.equal(new Set(log.exports.map(e => e.t)).size, log.exports.length, "ran once");
   assert.equal(log.exports[0].w, 1280);
   const req = apiCalls.at(-1);
   assert.equal(req.body.model, "claude-opus-5-5");
