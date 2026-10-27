@@ -257,6 +257,31 @@ textarea:focus,input:focus,select:focus{border-color:var(--lamp);outline:none}
 .radios label{display:inline-flex;align-items:center;gap:5px;cursor:pointer}
 @media (prefers-reduced-motion:reduce){.dot.on,.sign.working i{animation:none}.bub{transition:none}.ticker .tk span{animation:none;padding-left:0}}
 @media (max-width:600px){.brand h1{font-size:22px}.stats{margin-left:0}}
+.fo-pick{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0 6px}
+.fo-pick .note{margin:0;min-width:0}
+.fo-result{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.fo-sum{margin:0;font-size:13.5px;line-height:1.6;max-width:68ch}
+.fo-clients{display:flex;flex-wrap:wrap;gap:6px}
+.fo-client{font-size:12px;padding:2px 9px;border-radius:3px;background:var(--lamp-soft);color:var(--lamp);border:1px solid var(--line2)}
+.fo-h{display:flex;align-items:center;gap:8px;font-size:14px;margin:8px 0 0;font-weight:700}
+.fo-h small{font-family:var(--f-pixel);font-size:10px;color:var(--lamp);font-variant-numeric:tabular-nums}
+.fo-h .btn{margin-left:auto}
+.fo-checks{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:13px}
+.fo-checks code{font-size:12px;color:var(--sky);margin-right:6px;word-break:break-all}
+.fo-grp{border:1px solid var(--line);border-radius:6px;background:var(--panel2);min-width:0}
+.fo-grp summary{display:flex;gap:8px;align-items:baseline;padding:8px 10px;cursor:pointer;font-size:13px}
+.fo-grp summary small{color:var(--muted);font-variant-numeric:tabular-nums}
+.fo-mv{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:8px;align-items:start;padding:7px 10px;border-top:1px solid var(--line);font-size:12.5px;cursor:pointer}
+.fo-mv.off{opacity:.45}
+.fo-k{font-family:var(--f-pixel);font-size:10px;padding:1px 5px;border-radius:3px;background:var(--panel);color:var(--muted);margin-top:2px;white-space:nowrap}
+.fo-path{display:flex;flex-direction:column;min-width:0}
+.fo-from{word-break:break-all}
+.fo-to{color:var(--ok);word-break:break-all}
+.fo-why{color:var(--muted);font-size:11.5px}
+.fo-sz{color:var(--muted);font-size:11.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.fo-how{margin:6px 0 0;padding-left:20px;font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.fo-how b{color:var(--fg)}
+@media (max-width:420px){.fo-mv{grid-template-columns:auto auto minmax(0,1fr)}.fo-sz{grid-column:3}}
 </style>
 
 <header class="top">
@@ -341,6 +366,7 @@ textarea:focus,input:focus,select:focus{border-color:var(--lamp);outline:none}
         <button role="tab" type="button" data-tab="reels" aria-selected="false">릴스<span class="n" id="nReels"></span></button>
         <button role="tab" type="button" data-tab="report" aria-selected="false">보고서<span class="n" id="nReport"></span></button>
         <button role="tab" type="button" data-tab="wiki" aria-selected="false">위키<span class="n" id="nWiki"></span></button>
+        <button role="tab" type="button" data-tab="folders" aria-selected="false">폴더 정리</button>
         <button role="tab" type="button" data-tab="settings" aria-selected="false">설정</button>
       </nav>
 
@@ -385,6 +411,20 @@ textarea:focus,input:focus,select:focus{border-color:var(--lamp);outline:none}
         <div class="wiki-list" id="wikiList"></div>
       </div>
 
+      <div class="pane" data-pane="folders" style="padding-top:12px" hidden>
+        <p class="note" style="margin-top:0">지식관리팀(팀장 신가온)이 PC의 작업 폴더를 고객사별로 정리하는 안을 만들어요. 파일을 열지 않고 폴더·파일 이름과 크기, 날짜만 봐요. 정리안을 확인한 뒤 받는 정리 파일을 PC에서 실행해야 옮겨지고, 지우는 파일은 없어요.</p>
+        <div class="fo-pick"><button class="btn primary small" id="btnPickFolder" type="button">정리할 폴더 고르기</button><span class="note" id="foPicked">고객사 폴더들이 들어 있는 상위 폴더를 고르세요 (PC 브라우저나 Claude 데스크톱 앱에서)</span></div>
+        <p class="note" style="margin-top:0">브라우저가 '파일을 업로드할까요?'라고 물어도 파일은 어디에도 올라가지 않아요. 이름과 크기만 이 화면에서 읽어서 지식관리팀에게 보내요.</p>
+        <input type="file" id="folderInput" webkitdirectory multiple hidden>
+        <form class="form" id="foForm" style="margin-top:10px">
+          <label>폴더 구조 (고객사마다 이렇게)<textarea id="foStructure" rows="5"></textarea></label>
+          <label>고객사 이름 (알면 쉼표로)<input type="text" id="foClients" placeholder="예: OO브랜드, OO병원, OO카페"></label>
+          <label>추가 요청<textarea id="foNote" rows="2" placeholder="예: 2025년 이전 작업은 고객사 폴더 안 '지난 작업'으로"></textarea></label>
+          <div class="row"><button class="btn primary small" type="submit" id="btnFoPlan" disabled>정리안 만들기</button><span class="note" id="foMsg" style="margin:0"></span></div>
+        </form>
+        <div id="foPlan"></div>
+      </div>
+
       <div class="pane" data-pane="settings" style="padding-top:12px" hidden>
         <form class="form" id="profForm">
           <label>회사 이름<input type="text" id="pCo" placeholder="밤샘 콘텐츠 컴퍼니"></label>
@@ -403,6 +443,259 @@ textarea:focus,input:focus,select:focus{border-color:var(--lamp);outline:none}
     </div>
   </aside>
 </main>
+<script type="text/plain" id="foTplMain">
+# 밤샘 콘텐츠 컴퍼니 · 지식관리팀 폴더 정리 파일
+# 대상 폴더: __ROOT_NAME__   만든 날: __DATE__
+# 정리안대로 파일과 폴더의 위치만 옮깁니다. 파일을 지우지 않고, 끝나면 되돌리기 파일을 남깁니다.
+# 실행: 이 파일을 마우스 오른쪽 버튼으로 눌러 'PowerShell에서 실행' (윈도우 11은 '추가 옵션 표시' 안)
+param([string]$Root = "", [switch]$Yes, [switch]$RemoveEmpty)
+
+$ErrorActionPreference = "Stop"
+$Utf8Bom = New-Object System.Text.UTF8Encoding($true)
+$Sep = [string][System.IO.Path]::DirectorySeparatorChar
+function Decode([string]$b64) { return [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) }
+$Plan = (Decode '__PLAN_B64__') | ConvertFrom-Json
+$UndoTemplate = (Decode '__UNDO_B64__').TrimStart([char]0xFEFF)
+$Moves = @($Plan.moves)
+$script:Created = New-Object System.Collections.ArrayList
+
+function Full([string]$base, [string]$rel) { return [System.IO.Path]::Combine($base, $rel.Replace('/', $Sep)) }
+function Rel([string]$p) { return $p.Substring($script:RootPath.Length).TrimStart('\', '/').Replace('\', '/') }
+function Exists([string]$p) { return ([System.IO.Directory]::Exists($p) -or [System.IO.File]::Exists($p)) }
+function Ask([string]$q, [string]$auto) { if ($Yes) { return $auto } return [string](Read-Host $q) }
+function Wait-Close { if (-not $Yes) { [void](Read-Host "엔터를 누르면 창이 닫혀요") } }
+
+function Score([string]$dir) {
+  if (-not $dir -or -not [System.IO.Directory]::Exists($dir)) { return 0 }
+  $n = 0
+  foreach ($m in $Moves) { if (Exists (Full $dir $m.from)) { $n++ } }
+  return $n
+}
+
+function Pick-Folder {
+  try {
+    Add-Type -AssemblyName System.Windows.Forms
+    $d = New-Object System.Windows.Forms.FolderBrowserDialog
+    $d.Description = "정리할 '" + $Plan.root + "' 폴더를 고르세요"
+    $d.ShowNewFolderButton = $false
+    if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { return $d.SelectedPath }
+    return ""
+  } catch {
+    return ([string](Read-Host ("정리할 '" + $Plan.root + "' 폴더 경로를 붙여 넣고 엔터 (탐색기 주소창에서 복사)"))).Trim().Trim('"')
+  }
+}
+
+function Free-Name([string]$path, [bool]$isDir) {
+  $dir = [System.IO.Path]::GetDirectoryName($path)
+  $leaf = [System.IO.Path]::GetFileName($path)
+  $stem = $leaf
+  $ext = ""
+  if (-not $isDir) { $ext = [System.IO.Path]::GetExtension($leaf); $stem = [System.IO.Path]::GetFileNameWithoutExtension($leaf) }
+  for ($i = 2; $i -lt 1000; $i++) {
+    $c = [System.IO.Path]::Combine($dir, ("{0} ({1}){2}" -f $stem, $i, $ext))
+    if (-not (Exists $c)) { return $c }
+  }
+  throw ("같은 이름이 너무 많아요: " + $leaf)
+}
+
+function Ensure-Dir([string]$d) {
+  if ([System.IO.Directory]::Exists($d)) { return }
+  Ensure-Dir ([System.IO.Path]::GetDirectoryName($d))
+  [void][System.IO.Directory]::CreateDirectory($d)
+  [void]$script:Created.Add((Rel $d))
+}
+
+try {
+  Write-Host "밤샘 콘텐츠 컴퍼니 · 지식관리팀 폴더 정리"
+  Write-Host ("대상: '" + $Plan.root + "' 폴더 · 옮길 항목 " + $Moves.Count + "개")
+  Write-Host ""
+  $need = [Math]::Max(1, [Math]::Ceiling($Moves.Count / 2))
+  $found = ""
+  if ($Root) {
+    $found = (Resolve-Path -LiteralPath $Root).ProviderPath
+  } else {
+    foreach ($c in @($PSScriptRoot, [System.IO.Path]::GetDirectoryName($PSScriptRoot))) {
+      if ($c -and (Score $c) -ge $need) { $found = $c; break }
+    }
+  }
+  for ($try = 0; -not $found -and $try -lt 3; $try++) {
+    Write-Host ("정리할 '" + $Plan.root + "' 폴더를 고르는 창을 열어요. 창이 안 보이면 작업 표시줄을 확인하세요.")
+    $p = Pick-Folder
+    if (-not $p) { break }
+    $s = Score $p
+    if ($s -ge $need) { $found = $p }
+    else { Write-Host ("이 폴더에는 정리안에 있는 항목이 " + $s + "/" + $Moves.Count + "개뿐이에요. '" + $Plan.root + "' 폴더가 맞는지 확인하고 다시 골라 주세요.") -ForegroundColor Yellow }
+  }
+  if (-not $found) { Write-Host "폴더를 고르지 않아서 아무것도 옮기지 않았어요."; Wait-Close; exit 0 }
+  if ($found.Length -gt 3) { $found = $found.TrimEnd('\', '/') }
+  $script:RootPath = $found
+
+  Write-Host ("정리할 폴더: " + $found)
+  Write-Host ""
+  $i = 0
+  foreach ($m in $Moves) {
+    $i++
+    if ($i -gt 40) { Write-Host ("  ... 외 " + ($Moves.Count - 40) + "개"); break }
+    $kind = "[파일]"
+    if ($m.dir) { $kind = "[폴더]" }
+    Write-Host ("  " + $kind + " " + $m.from + "  ->  " + $m.to)
+  }
+  Write-Host ""
+  Write-Host "파일을 지우지 않고 위치만 옮겨요. 프리미어 프로젝트가 쓰는 파일을 옮기면, 프로젝트를 열 때 '미디어 연결'에서 새 위치의 파일 하나를 찾아 주면 나머지도 따라 연결돼요." -ForegroundColor Cyan
+  Write-Host "프리미어나 다른 프로그램에서 이 폴더의 파일을 열어 두었다면 먼저 닫아 주세요."
+  $a = Ask "옮기려면 Y를 입력하고 엔터 (그냥 엔터: 취소)" "y"
+  if ($a -notmatch '^\s*[yYㅛ]') { Write-Host "취소했어요. 아무것도 옮기지 않았어요."; Wait-Close; exit 0 }
+
+  # 안쪽 항목부터 옮겨야 바깥 폴더를 옮길 때 경로가 꼬이지 않음
+  $order = @($Moves | Sort-Object -Property @{ Expression = { ($_.from -split '/').Count }; Descending = $true })
+  $done = New-Object System.Collections.ArrayList
+  $sources = New-Object System.Collections.ArrayList
+  $log = New-Object System.Collections.ArrayList
+  $failed = 0
+  $missing = 0
+  foreach ($m in $order) {
+    $src = Full $found $m.from
+    $dst = Full $found $m.to
+    $isDir = [System.IO.Directory]::Exists($src)
+    if (-not $isDir -and -not [System.IO.File]::Exists($src)) {
+      $missing++
+      [void]$log.Add("없어서 건너뜀: " + $m.from)
+      Write-Host ("  없어서 건너뜀: " + $m.from) -ForegroundColor DarkYellow
+      continue
+    }
+    try {
+      if (Exists $dst) { $dst = Free-Name $dst $isDir }
+      Ensure-Dir ([System.IO.Path]::GetDirectoryName($dst))
+      if ($isDir) { [System.IO.Directory]::Move($src, $dst) } else { [System.IO.File]::Move($src, $dst) }
+      [void]$done.Add([ordered]@{ from = $m.from; to = (Rel $dst) })
+      [void]$sources.Add([System.IO.Path]::GetDirectoryName($src))
+      [void]$log.Add("옮김: " + $m.from + "  ->  " + (Rel $dst))
+      Write-Host ("  옮김: " + $m.from + "  ->  " + (Rel $dst))
+    } catch {
+      $failed++
+      [void]$log.Add("못 옮김: " + $m.from + " (" + $_.Exception.Message + ")")
+      Write-Host ("  못 옮김: " + $m.from + " (" + $_.Exception.Message + ")") -ForegroundColor Yellow
+    }
+  }
+
+  # 옮기고 나서 빈 채로 남은 폴더 (물어본 뒤에만, 비어 있을 때만 지움)
+  $cands = New-Object System.Collections.ArrayList
+  foreach ($s in $sources) {
+    $p = $s
+    while ($p -and $p.Length -gt $found.Length) {
+      if (-not $cands.Contains($p)) { [void]$cands.Add($p) }
+      $p = [System.IO.Path]::GetDirectoryName($p)
+    }
+  }
+  $removable = New-Object System.Collections.ArrayList
+  foreach ($d in @($cands | Sort-Object -Property Length -Descending)) {
+    if (-not [System.IO.Directory]::Exists($d)) { continue }
+    $left = @([System.IO.Directory]::GetFileSystemEntries($d) | Where-Object { -not $removable.Contains($_) })
+    if ($left.Count -eq 0) { [void]$removable.Add($d) }
+  }
+  if ($removable.Count -gt 0) {
+    $auto = "n"
+    if ($RemoveEmpty) { $auto = "y" }
+    $a2 = Ask ("옮기고 나서 빈 폴더가 " + $removable.Count + "개 남았어요. 지우려면 Y (그냥 엔터: 그대로 둠)") $auto
+    if ($a2 -match '^\s*[yYㅛ]') {
+      foreach ($d in $removable) {
+        try {
+          if (@([System.IO.Directory]::GetFileSystemEntries($d)).Count -eq 0) { [System.IO.Directory]::Delete($d); [void]$log.Add("빈 폴더 지움: " + (Rel $d)) }
+        } catch { }
+      }
+    }
+  }
+
+  $stamp = Get-Date -Format "yyyyMMdd_HHmm"
+  if ($done.Count -gt 0) {
+    $rev = @($done.ToArray())
+    [array]::Reverse($rev)
+    $undo = [ordered]@{ root = $Plan.root; done = $rev; created = @($script:Created.ToArray()) }
+    $b64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((ConvertTo-Json $undo -Depth 5 -Compress)))
+    $undoName = "폴더정리_되돌리기_" + $stamp + ".ps1"
+    [System.IO.File]::WriteAllText((Join-Path $found $undoName), $UndoTemplate.Replace("__UNDO_DATA_B64__", $b64), $Utf8Bom)
+  }
+  $logName = "폴더정리_기록_" + $stamp + ".txt"
+  $head = @("밤샘 콘텐츠 컴퍼니 · 지식관리팀 폴더 정리 기록", ("폴더: " + $found), ("옮김 " + $done.Count + " · 없어서 건너뜀 " + $missing + " · 못 옮김 " + $failed), "")
+  [System.IO.File]::WriteAllText((Join-Path $found $logName), (($head + @($log.ToArray())) -join "`r`n"), $Utf8Bom)
+
+  Write-Host ""
+  Write-Host ("다 됐어요. 옮김 " + $done.Count + "개 · 없어서 건너뜀 " + $missing + "개 · 못 옮김 " + $failed + "개") -ForegroundColor Green
+  Write-Host ("기록: " + $logName)
+  if ($done.Count -gt 0) { Write-Host ("되돌리려면 '" + $Plan.root + "' 폴더의 '" + $undoName + "'을 같은 방법으로 실행하세요.") }
+  if ($failed -gt 0) { Write-Host "못 옮긴 항목은 다른 프로그램이 열고 있는지 확인한 뒤 이 파일을 다시 실행하면 남은 것만 옮겨요." -ForegroundColor Yellow }
+  Wait-Close
+} catch {
+  Write-Host ""
+  Write-Host ("정리하다가 멈췄어요: " + $_.Exception.Message) -ForegroundColor Red
+  Write-Host "이 문구를 그대로 알려 주세요. 그때까지 옮긴 것은 기록 파일이 없으면 탐색기에서 확인해 주세요."
+  Wait-Close
+  exit 1
+}
+</script>
+<script type="text/plain" id="foTplUndo">
+# 밤샘 콘텐츠 컴퍼니 · 지식관리팀 폴더 정리 되돌리기
+# 이 파일이 있는 폴더에서, 정리할 때 옮긴 것을 원래 자리로 돌려놓습니다. 지우는 파일은 없어요.
+# 실행: 마우스 오른쪽 버튼으로 눌러 'PowerShell에서 실행' (윈도우 11은 '추가 옵션 표시' 안)
+param([switch]$Yes)
+
+$ErrorActionPreference = "Stop"
+$Sep = [string][System.IO.Path]::DirectorySeparatorChar
+$Data = ([System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__UNDO_DATA_B64__'))) | ConvertFrom-Json
+$Root = $PSScriptRoot
+function Full([string]$rel) { return [System.IO.Path]::Combine($Root, $rel.Replace('/', $Sep)) }
+function Exists([string]$p) { return ([System.IO.Directory]::Exists($p) -or [System.IO.File]::Exists($p)) }
+function Wait-Close { if (-not $Yes) { [void](Read-Host "엔터를 누르면 창이 닫혀요") } }
+function Free-Name([string]$path, [bool]$isDir) {
+  $dir = [System.IO.Path]::GetDirectoryName($path)
+  $leaf = [System.IO.Path]::GetFileName($path)
+  $stem = $leaf
+  $ext = ""
+  if (-not $isDir) { $ext = [System.IO.Path]::GetExtension($leaf); $stem = [System.IO.Path]::GetFileNameWithoutExtension($leaf) }
+  for ($i = 2; $i -lt 1000; $i++) {
+    $c = [System.IO.Path]::Combine($dir, ("{0} ({1}){2}" -f $stem, $i, $ext))
+    if (-not (Exists $c)) { return $c }
+  }
+  throw ("같은 이름이 너무 많아요: " + $leaf)
+}
+
+try {
+  $items = @($Data.done)
+  Write-Host ("폴더 정리 되돌리기: '" + $Root + "' 안에서 " + $items.Count + "개를 원래 자리로 돌려놓아요.")
+  $a = "y"
+  if (-not $Yes) { $a = [string](Read-Host "되돌리려면 Y를 입력하고 엔터 (그냥 엔터: 취소)") }
+  if ($a -notmatch '^\s*[yYㅛ]') { Write-Host "취소했어요."; Wait-Close; exit 0 }
+  $ok = 0
+  $failed = 0
+  foreach ($m in $items) {
+    $src = Full $m.to
+    $dst = Full $m.from
+    $isDir = [System.IO.Directory]::Exists($src)
+    if (-not $isDir -and -not [System.IO.File]::Exists($src)) { Write-Host ("  없어서 건너뜀: " + $m.to) -ForegroundColor DarkYellow; continue }
+    try {
+      if (Exists $dst) { $dst = Free-Name $dst $isDir }
+      [void][System.IO.Directory]::CreateDirectory([System.IO.Path]::GetDirectoryName($dst))
+      if ($isDir) { [System.IO.Directory]::Move($src, $dst) } else { [System.IO.File]::Move($src, $dst) }
+      $ok++
+      Write-Host ("  되돌림: " + $m.to + "  ->  " + $m.from)
+    } catch {
+      $failed++
+      Write-Host ("  못 되돌림: " + $m.to + " (" + $_.Exception.Message + ")") -ForegroundColor Yellow
+    }
+  }
+  # 정리할 때 새로 만든 폴더가 비었으면 지움
+  foreach ($d in @(@($Data.created) | Sort-Object -Property Length -Descending)) {
+    $p = Full $d
+    try { if ([System.IO.Directory]::Exists($p) -and @([System.IO.Directory]::GetFileSystemEntries($p)).Count -eq 0) { [System.IO.Directory]::Delete($p) } } catch { }
+  }
+  Write-Host ("다 됐어요. 되돌림 " + $ok + "개 · 못 되돌림 " + $failed + "개") -ForegroundColor Green
+  Wait-Close
+} catch {
+  Write-Host ("되돌리다가 멈췄어요: " + $_.Exception.Message) -ForegroundColor Red
+  Wait-Close
+  exit 1
+}
+</script>
 <div class="toast" id="toast" hidden></div>
 <script>
 "use strict";
@@ -1691,6 +1984,7 @@ function showTab(name) {
   if (name === "trend") renderTrends();
   if (name === "blog") renderPosts();
   if (name === "reels") renderReels();
+  if (name === "folders") renderFolders();
 }
 
 /* ───────── 15-2. 블로그 발행실: 원고 → 검수·사진 → 승인 → Claude가 업로드 ───────── */
@@ -2702,6 +2996,322 @@ function renderTray() {
   $("btnOrder").textContent = trayFiles.length ? "사진으로 지시하기" : "지시하기";
 }
 
+/* ───────── 15-4. 고객사 폴더 정리: 지식관리팀이 정리안을 쓰고, PC에서 실행할 정리 파일을 만듦 ───────── */
+/* FOLDER-ORG START */
+const FO_JUNK = /^(desktop\.ini|thumbs\.db|\.ds_store|~\$.*|\._.*)$/i;
+const FO_PROJECT = /\.(prproj|aep|aepx|drp|fcpxml|veg|prel|plproj)$/i;
+const FO_BAD = /[<>:"|?*\u0000-\u001f]/;
+const FO_RESERVED = /^(con|prn|aux|nul|com\d|lpt\d)(\..*)?$/i;
+const FO_STRUCTURE = "고객사/{고객사}/01_기획·계약 (기획안, 견적서, 계약서, 받은 자료 목록)\n고객사/{고객사}/02_원본 소스 (촬영 원본, 받은 사진·영상·음원·폰트)\n고객사/{고객사}/03_편집 작업 (프리미어·애프터이펙트 프로젝트 폴더는 통째로)\n고객사/{고객사}/04_완성본 (납품한 최종 영상·썸네일)\n개인·기타 (고객사와 상관없는 것)";
+let fo = { scan: null, plan: null, moves: [], dropped: [], checks: [], off: new Set(), busy: false };
+
+const foParent = p => (p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "");
+const foBase = p => p.slice(p.lastIndexOf("/") + 1);
+const foInside = (p, dir) => p === dir || p.startsWith(dir + "/");
+function foSize(n) {
+  if (n >= 1e9) return (n / 1e9).toFixed(1) + "GB";
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + "MB";
+  if (n >= 1e3) return Math.round(n / 1e3) + "KB";
+  return n + "B";
+}
+function foMonth(ms) {
+  const d = new Date(ms);
+  return ms && !isNaN(d) ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` : "";
+}
+
+/** 고른 폴더의 파일 목록 [{path:"고른폴더/a/b.mp4", size, mtime}] → 폴더별 통계 */
+function foScan(list) {
+  const files = [], fileSet = new Set(), folders = new Map();
+  let root = "";
+  const folder = rel => {
+    let f = folders.get(rel);
+    if (!f) { f = { path: rel, count: 0, size: 0, mtime: 0, exts: new Map(), direct: [], subs: new Set(), project: false }; folders.set(rel, f); }
+    return f;
+  };
+  folder("");
+  for (const it of list) {
+    const parts = String(it.path || "").split("/").filter(Boolean);
+    if (parts.length < 2) continue;
+    if (!root) root = parts[0];
+    const name = parts[parts.length - 1];
+    if (FO_JUNK.test(name)) continue;
+    const rel = parts.slice(1).join("/"), ext = name.includes(".") ? name.slice(name.lastIndexOf(".") + 1).toLowerCase() : "";
+    files.push({ path: rel, size: +it.size || 0, mtime: +it.mtime || 0 });
+    fileSet.add(rel);
+    folder(foParent(rel)).direct.push(name);
+    for (let d = foParent(rel); ; d = foParent(d)) {
+      const f = folder(d);
+      f.count++; f.size += +it.size || 0; f.mtime = Math.max(f.mtime, +it.mtime || 0);
+      if (ext) f.exts.set(ext, (f.exts.get(ext) || 0) + 1);
+      if (FO_PROJECT.test(name)) f.project = true;
+      if (!d) break;
+      folder(foParent(d)).subs.add(d);
+    }
+  }
+  return { root, files, fileSet, folders };
+}
+
+function foLine(f, label) {
+  const exts = [...f.exts].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([e, n]) => `${e}×${n}`).join(" ");
+  return `${label} | 파일 ${f.count}개 | ${foSize(f.size)} | ${foMonth(f.mtime)}${exts ? " | " + exts : ""}${f.project ? " | 편집 프로젝트 있음" : ""}`;
+}
+function foLines(scan, depth, samples) {
+  const out = [];
+  const walk = (rel, level) => {
+    for (const s of [...scan.folders.get(rel).subs].sort((a, b) => a.localeCompare(b, "ko"))) {
+      const f = scan.folders.get(s), pad = "  ".repeat(level);
+      out.push(pad + foLine(f, "[폴더] " + s));
+      if (samples && f.direct.length) out.push(pad + "  파일 예: " + f.direct.slice(0, samples).join(", ") + (f.direct.length > samples ? ` 외 ${f.direct.length - samples}개` : ""));
+      if (level + 1 < depth) walk(s, level + 1);
+    }
+  };
+  walk("", 0);
+  for (const x of scan.files) if (!x.path.includes("/")) out.push(`[파일] ${x.path} | ${foSize(x.size)} | ${foMonth(x.mtime)}`);
+  return out;
+}
+/** Claude에게 보낼 폴더 상태. 너무 크면 깊이와 예시 수를 줄임 */
+function foSummary(scan, maxBytes) {
+  const enc = new TextEncoder();
+  for (const [depth, samples] of [[3, 8], [3, 4], [2, 4], [2, 0], [1, 0]]) {
+    const text = foLines(scan, depth, samples).join("\n");
+    if (enc.encode(text).length <= maxBytes) return text;
+  }
+  const lines = foLines(scan, 1, 0);
+  let used = 0, i = 0;
+  for (; i < lines.length; i++) { used += enc.encode(lines[i]).length + 1; if (used > maxBytes) break; }
+  return lines.slice(0, i).join("\n") + `\n(이하 ${lines.length - i}개 생략)`;
+}
+
+function foPrompt(scan, o, summary) {
+  const top = scan.folders.get("");
+  return `당신은 AI 콘텐츠 회사 '${store.profile.co || "밤샘 콘텐츠 컴퍼니"}'의 지식관리팀 팀장 신가온입니다. 영상 편집자인 대표님의 PC 작업 폴더 '${scan.root}'를 고객사별로 정리하는 안을 만드세요. 파일 내용은 볼 수 없고 이름, 크기, 날짜, 확장자만 있습니다.
+
+[원하는 폴더 구조] ({고객사} 자리에 고객사 이름)
+${o.structure || FO_STRUCTURE}
+
+[대표님이 알려 준 고객사]
+${o.clients || "(없음. 폴더·파일 이름에서 찾으세요.)"}
+
+[추가 요청]
+${o.note || "(없음)"}
+
+[지금 '${scan.root}' 폴더] 파일 ${top.count}개, ${foSize(top.size)}. 경로는 '${scan.root}' 안의 상대 경로입니다.
+${summary}
+
+규칙:
+- 위치만 옮깁니다. 이름은 바꾸지 않고, 지우는 것도 없습니다.
+- 옮기는 단위는 되도록 폴더 통째로. 한 고객사 작업이 한 폴더에 모여 있으면 그 폴더를 고객사 폴더 아래 알맞은 칸으로 옮기세요.
+- '편집 프로젝트 있음' 폴더는 안의 파일을 흩지 말고 통째로 '03_편집 작업'에 넣으세요. 흩으면 프리미어 프로젝트의 미디어 연결이 끊깁니다.
+- 맨 위에 흩어진 낱개 파일은 파일 단위로 알맞은 칸에 넣으세요.
+- 고객사를 알 수 없는 것은 옮기지 말고 check에 질문으로 남기세요. 추측으로 옮기지 않습니다.
+- 이미 원하는 구조대로 있는 것은 moves에 넣지 않습니다.
+- 같은 고객사로 보이는 폴더 이름이 여러 가지면 고객사 폴더 이름을 짧고 하나로 통일하세요 (예: 'OO브랜드_시딩 클린본'과 'OO브랜드 2차'의 고객사는 'OO브랜드').
+- from은 위 목록에 있는 경로 그대로, to는 새 위치의 전체 상대 경로이고 마지막 이름은 원래 이름 그대로입니다. 경로는 '/'로 나누고, 이름에 : * ? " < > | 를 쓰지 않습니다.
+- reason은 20자 안쪽으로.
+오직 JSON 객체 하나로만 답하세요: {"summary":"정리 방향 2~3문장","clients":["고객사 이름"],"moves":[{"from":"지금 경로","to":"새 경로","reason":"이유"}],"check":[{"path":"경로","question":"대표님께 물어볼 것"}]}`;
+}
+
+function foNorm(p, scan) {
+  let s = String(p == null ? "" : p).trim().replace(/\\/g, "/").replace(/\/{2,}/g, "/").replace(/^\.\//, "").replace(/^\/+|\/+$/g, "");
+  if (scan.root && s.startsWith(scan.root + "/") && !foExists(scan, s)) s = s.slice(scan.root.length + 1);
+  return s;
+}
+const foExists = (scan, p) => !!p && (scan.fileSet.has(p) || scan.folders.has(p));
+function foCleanTo(p) {
+  const segs = p.split("/").map(x => x.trim().replace(/[. ]+$/, "")).filter(Boolean);
+  if (!segs.length || segs.some(x => x === "." || x === ".." || FO_BAD.test(x) || FO_RESERVED.test(x) || x.length > 120)) return null;
+  return segs.join("/");
+}
+
+/** Claude 정리안에서 실제로 옮길 수 있는 것만 남김 */
+function foValidate(plan, scan) {
+  const moves = [], dropped = [], seen = new Set();
+  for (const m of plan && Array.isArray(plan.moves) ? plan.moves : []) {
+    const drop = why => dropped.push({ from: String((m && m.from) || ""), why });
+    const from = foNorm(m && m.from, scan);
+    if (!foExists(scan, from)) { drop("지금 폴더에 없는 경로예요"); continue; }
+    if (seen.has(from)) { drop("같은 항목이 두 번 나왔어요"); continue; }
+    let to = foCleanTo(foNorm(m && m.to, scan));
+    if (!to) { drop("새 위치 이름을 쓸 수 없어요"); continue; }
+    if (foBase(to) !== foBase(from)) to += "/" + foBase(from); // 이름은 그대로 두고 위치만
+    if (to === from) { drop("이미 그 자리에 있어요"); continue; }
+    if (foInside(to, from)) { drop("자기 안으로는 옮길 수 없어요"); continue; }
+    seen.add(from);
+    const dir = scan.folders.has(from), f = dir ? scan.folders.get(from) : scan.files.find(x => x.path === from);
+    moves.push({ from, to, dir, reason: String((m && m.reason) || "").slice(0, 80), count: dir ? f.count : 1, size: f ? f.size : 0 });
+  }
+  // 다른 폴더를 옮기기 전에 그 폴더 안으로 들어가면 함께 딸려 가서 엉뚱한 곳에 놓이므로 뺌
+  const ok = [];
+  for (const m of moves) {
+    const carrier = moves.find(o => o !== m && o.dir && foInside(m.to, o.from));
+    if (carrier) dropped.push({ from: m.from, why: `'${carrier.from}'도 옮겨져서 같이 딸려 가요` });
+    else ok.push(m);
+  }
+  const checks = (plan && Array.isArray(plan.check) ? plan.check : []).filter(c => c && c.question).map(c => ({ path: foNorm(c.path, scan), question: String(c.question).slice(0, 200) })).slice(0, 30);
+  return { moves: ok, dropped, checks };
+}
+
+function foB64(str) {
+  const b = new TextEncoder().encode(str);
+  let s = "";
+  for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+const foWin = s => "﻿" + String(s).replace(/\r?\n/g, "\r\n");
+const foTpl = id => ($(id) ? $(id).textContent.replace(/^\s*\n/, "") : "");
+/** PC에서 실행할 정리 파일(PowerShell) */
+function foScript(root, moves, tplMain, tplUndo) {
+  const plan = { root, made: new Date().toISOString(), moves: moves.map(m => ({ from: m.from, to: m.to, dir: !!m.dir })) };
+  return tplMain.split("__ROOT_NAME__").join(root.replace(/[\r\n]/g, " ")).split("__DATE__").join(new Date().toLocaleDateString("ko-KR"))
+    .split("__PLAN_B64__").join(foB64(JSON.stringify(plan))).split("__UNDO_B64__").join(foB64(String(tplUndo).replace(/\r?\n/g, "\r\n"))); // BOM은 정리 파일이 저장할 때 붙임
+}
+function foPlanText(root, plan, moves, checks) {
+  const lines = [`'${root}' 폴더 정리안 (밤샘 콘텐츠 컴퍼니 지식관리팀)`, "", plan.summary || "", ""];
+  lines.push(`옮길 것 ${moves.length}개`);
+  for (const m of moves) lines.push(`- ${m.dir ? "[폴더]" : "[파일]"} ${m.from}  ->  ${m.to}${m.reason ? `  (${m.reason})` : ""}`);
+  if (checks.length) { lines.push("", "확인할 것"); for (const c of checks) lines.push(`- ${c.path ? c.path + ": " : ""}${c.question}`); }
+  return lines.join("\n");
+}
+function foReadme(root, n) {
+  return `밤샘 콘텐츠 컴퍼니 · 지식관리팀 폴더 정리 ('${root}', ${n}개 옮김)
+
+1. 이 zip을 풀어 주세요. 아무 곳이나 괜찮아요.
+2. folder-organize.ps1 을 마우스 오른쪽 버튼으로 눌러 'PowerShell에서 실행'을 고르세요.
+   윈도우 11은 오른쪽 버튼 메뉴의 '추가 옵션 표시' 안에 있어요. 보안 경고가 나오면 R(한 번 실행)을 누르세요.
+3. 폴더를 고르는 창이 뜨면 '${root}' 폴더를 고르세요.
+4. 옮길 목록이 나오면 확인하고 Y를 입력한 뒤 엔터. 그냥 엔터를 누르면 아무것도 바뀌지 않아요.
+5. 끝나면 '${root}' 폴더에 두 파일이 생겨요.
+   - 폴더정리_기록_날짜.txt : 무엇을 어디로 옮겼는지
+   - 폴더정리_되돌리기_날짜.ps1 : 원래대로 돌리고 싶을 때 같은 방법으로 실행
+
+알아 둘 점
+- 파일을 지우지 않고 위치만 옮겨요. 옮긴 뒤 빈 폴더는 물어본 다음에만 지워요.
+- 프리미어에서 쓰던 파일을 옮겼다면, 프로젝트를 열 때 '미디어 연결' 창에서 새 위치의 파일 하나를 찾아 주면 나머지도 따라 연결돼요.
+- 정리하기 전에 프리미어를 닫아 두세요. 열려 있는 파일은 옮기지 못하고 건너뛰어요.
+- 윈도우 전용이에요. 전체 정리안은 plan.txt에 있어요.
+`;
+}
+
+/* ── 화면 ── */
+function foGroup(to) {
+  const segs = to.split("/");
+  return segs.length > 2 && segs[0] === "고객사" ? segs.slice(0, 2).join("/") : segs.length > 1 ? segs[0] : "(맨 위)";
+}
+function renderFolders() {
+  const s = fo.scan;
+  if (s) {
+    const top = s.folders.get(""), n = s.folders.size - 1;
+    $("foPicked").textContent = `'${s.root}' · 파일 ${top.count.toLocaleString("ko-KR")}개 · 폴더 ${n.toLocaleString("ko-KR")}개 · ${foSize(top.size)}`;
+  }
+  $("btnFoPlan").disabled = !s || fo.busy;
+  const box = $("foPlan");
+  if (!fo.plan) {
+    box.innerHTML = s ? "" : `<div class="empty-state">폴더를 고르면 지식관리팀이 고객사별 정리안을 만들어요. 정리안은 여기에 나오고, 확인한 뒤에 PC에서 실행할 정리 파일을 받아요.</div>`;
+    return;
+  }
+  const groups = new Map();
+  fo.moves.forEach((m, i) => { const g = foGroup(m.to); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(i); });
+  const on = fo.moves.filter((m, i) => !fo.off.has(i)).length;
+  const clients = (fo.plan.clients || []).filter(Boolean).map(c => `<span class="fo-client">${esc(c)}</span>`).join("");
+  const checks = fo.checks.length ? `<h3 class="fo-h">대표님 확인이 필요해요 <small>${fo.checks.length}</small></h3><ul class="fo-checks">${fo.checks.map(c => `<li>${c.path ? `<code>${esc(c.path)}</code>` : ""}${esc(c.question)}</li>`).join("")}</ul>` : "";
+  const rows = [...groups].map(([g, idx]) => `<details class="fo-grp" open><summary><b>${esc(g)}</b><small>${idx.length}개</small></summary>${idx.map(i => {
+    const m = fo.moves[i];
+    return `<label class="fo-mv${fo.off.has(i) ? " off" : ""}"><input type="checkbox" data-mv="${i}"${fo.off.has(i) ? "" : " checked"}><span class="fo-k">${m.dir ? "폴더" : "파일"}</span><span class="fo-path"><span class="fo-from">${esc(m.from)}</span><span class="fo-to">→ ${esc(foParent(m.to) || "(맨 위)")}</span>${m.reason ? `<span class="fo-why">${esc(m.reason)}</span>` : ""}</span><span class="fo-sz">${m.dir ? m.count + "개 · " : ""}${foSize(m.size)}</span></label>`;
+  }).join("")}</details>`).join("");
+  const dropped = fo.dropped.length ? `<p class="note">정리안에서 ${fo.dropped.length}개는 옮길 수 없어서 뺐어요: ${fo.dropped.slice(0, 5).map(d => `${esc(d.from || "?")} (${esc(d.why)})`).join(", ")}${fo.dropped.length > 5 ? " 외" : ""}</p>` : "";
+  box.innerHTML = `<div class="fo-result">
+    <p class="fo-sum">${esc(fo.plan.summary || "정리안을 만들었어요.")}</p>
+    ${clients ? `<div class="fo-clients">${clients}</div>` : ""}
+    ${checks}
+    <h3 class="fo-h">옮길 것 <small>${on}/${fo.moves.length}</small><button class="btn small ghost" type="button" id="foAll">${on === fo.moves.length ? "모두 빼기" : "모두 넣기"}</button></h3>
+    ${fo.moves.length ? rows : `<div class="empty-state">옮길 것이 없어요. 이미 정리돼 있거나, 고객사를 알 수 없는 것만 남았어요.</div>`}
+    ${dropped}
+    <div class="row" style="margin-top:12px"><button class="btn primary" type="button" id="foZip"${on ? "" : " disabled"}>정리 파일 받기 (.zip)</button><button class="btn small" type="button" id="foCopy">정리안 복사</button></div>
+    <ol class="fo-how">
+      <li>받은 zip을 풀고 <b>folder-organize.ps1</b>을 마우스 오른쪽 버튼으로 눌러 <b>PowerShell에서 실행</b> (윈도우 11은 '추가 옵션 표시' 안)</li>
+      <li>폴더를 고르는 창에서 <b>'${esc(fo.scan.root)}'</b> 폴더를 고르기</li>
+      <li>목록을 확인하고 <b>Y</b> + 엔터. 끝나면 그 폴더에 기록과 <b>되돌리기 파일</b>이 생겨요</li>
+    </ol>
+    <p class="note">파일을 지우지 않고 위치만 옮겨요. 프리미어 프로젝트가 쓰던 파일이 옮겨지면, 프로젝트를 열 때 '미디어 연결'에서 새 위치를 한 번 찾아 주면 돼요. 정리 전에 프리미어를 닫아 두세요.</p>
+  </div>`;
+  box.querySelectorAll("[data-mv]").forEach(c => (c.onchange = () => { const i = +c.dataset.mv; if (c.checked) fo.off.delete(i); else fo.off.add(i); renderFolders(); }));
+  $("foAll").onclick = () => { if (on === fo.moves.length) fo.moves.forEach((m, i) => fo.off.add(i)); else fo.off.clear(); renderFolders(); };
+  $("foZip").onclick = () => saveFolderZip($("foZip"));
+  $("foCopy").onclick = () => copyText(foPlanText(fo.scan.root, fo.plan, fo.moves.filter((m, i) => !fo.off.has(i)), fo.checks), "정리안을 복사했어요");
+}
+
+async function makeFolderPlan() {
+  const s = fo.scan;
+  if (!s || fo.busy) return;
+  if (mode !== "claude" || !sample) { $("foMsg").textContent = "Claude에 연결된 화면(claude.ai)에서 열어야 지식관리팀이 정리안을 쓸 수 있어요."; return; }
+  const o = { structure: $("foStructure").value.trim(), clients: $("foClients").value.trim(), note: $("foNote").value.trim() };
+  store.local.folderStructure = o.structure; store.local.folderClients = o.clients; store.savePrefs();
+  const maxBytes = Math.min(150000, Math.floor((((sampleLimits && sampleLimits.maxInputBytes) || 250000) - 12000) * 0.8));
+  const prompt = foPrompt(s, o, foSummary(s, maxBytes));
+  const tm = TEAMS.wiki, lead = () => tm.staff.find(atSeat) || tm.staff[0];
+  fo.busy = true; renderFolders();
+  tm.status = "working"; refreshTeams();
+  log("wiki", `'${s.root}' 폴더 정리안 작성 시작 (파일 ${s.folders.get("").count}개)`);
+  say(lead(), pick(["분류 체계 짜는 중", "고객사별로 묶어 볼게요", "폴더 이름부터 훑는 중"]), 2600);
+  $("foMsg").textContent = "지식관리팀이 폴더 이름을 보고 정리안을 쓰는 중이에요…";
+  try {
+    const plan = await sample.json(prompt, { modelTier: tierOf(), onText: ({ text }) => { $("foMsg").textContent = `지식관리팀이 정리안을 쓰는 중이에요… (${text.length.toLocaleString("ko-KR")}자)`; } });
+    const v = foValidate(plan, s);
+    fo.plan = plan && typeof plan === "object" ? plan : {}; fo.moves = v.moves; fo.dropped = v.dropped; fo.checks = v.checks; fo.off = new Set();
+    tm.status = "done";
+    log("wiki", `폴더 정리안 완료: 옮길 것 ${v.moves.length}개, 확인할 것 ${v.checks.length}개`);
+    say(lead(), "정리안 나왔어요! 확인해 주세요", 2600);
+    $("foMsg").textContent = "";
+  } catch (e) {
+    tm.status = "error";
+    const code = e && e.code;
+    const msg = { rate_limited: "Claude 사용량 한도에 걸렸어요. 잠시 뒤 다시 시도해 주세요.", invalid_json: "정리안 형식이 깨졌어요. 다시 누르면 새로 씁니다.", prompt_too_large: "폴더가 너무 커요. 고객사 폴더가 모인 상위 폴더를 하나씩 나눠서 골라 주세요.", refused: "이 요청은 Claude가 처리하지 않았어요." }[code] || "연결이 잠깐 끊겼어요. 다시 시도해 주세요.";
+    log("wiki", "폴더 정리안 문제: " + msg, true);
+    say(lead(), "앗, 다시 해 볼게요", 2600);
+    $("foMsg").textContent = msg;
+  } finally {
+    fo.busy = false; refreshTeams(); renderFolders();
+  }
+}
+
+async function saveFolderZip(btn) {
+  if (!downloads) { toast("이 화면에서는 파일을 저장할 수 없어요. 정리안 복사를 써 주세요"); return; }
+  const moves = fo.moves.filter((m, i) => !fo.off.has(i));
+  if (!moves.length) return;
+  const root = fo.scan.root, enc = new TextEncoder();
+  const files = [
+    { name: "folder-organize.ps1", data: enc.encode(foWin(foScript(root, moves, foTpl("foTplMain"), foTpl("foTplUndo")))) },
+    { name: "README.txt", data: enc.encode(foWin(foReadme(root, moves.length))) },
+    { name: "plan.txt", data: enc.encode(foWin(foPlanText(root, fo.plan, moves, fo.checks))) },
+  ];
+  btn.disabled = true;
+  try {
+    await downloads.save({ filename: "폴더정리_" + root.replace(/[\\/:*?"<>|]/g, "").slice(0, 40) + ".zip", data: makeZip(files) });
+    toast("정리 파일을 저장했어요. zip을 풀고 PowerShell에서 실행하세요");
+    log("wiki", `정리 파일 전달: '${root}' ${moves.length}개`);
+  } catch (e) {
+    if (e && e.code !== "declined") toast("이 화면에서는 저장할 수 없어요. 정리안 복사를 써 주세요");
+  } finally { btn.disabled = false; }
+}
+
+function bindFolders() {
+  $("foStructure").value = store.local.folderStructure || FO_STRUCTURE;
+  $("foClients").value = store.local.folderClients || "";
+  $("btnPickFolder").onclick = () => $("folderInput").click();
+  $("folderInput").onchange = e => {
+    const list = [...(e.target.files || [])].map(f => ({ path: f.webkitRelativePath || f.name, size: f.size, mtime: f.lastModified }));
+    e.target.value = "";
+    const scan = foScan(list);
+    if (!scan.root || !scan.files.length) { toast("폴더 안에서 파일을 찾지 못했어요. 파일이 든 폴더를 골라 주세요"); return; }
+    fo = { scan, plan: null, moves: [], dropped: [], checks: [], off: new Set(), busy: false };
+    $("foMsg").textContent = "";
+    log("wiki", `'${scan.root}' 폴더 목록을 받았어요 (파일 ${scan.files.length}개)`);
+    renderFolders();
+  };
+  $("foForm").onsubmit = e => { e.preventDefault(); makeFolderPlan(); };
+}
+/* FOLDER-ORG END */
+
 /* ───────── 16. 시작 ───────── */
 const autoBox = $("auto"), btnIdeas = $("btnIdeas");
 let speed = 1, downloads = null;
@@ -2752,6 +3362,7 @@ function bind() {
     catch (e) { if (e && e.code !== "declined") toast("이 화면에서는 저장할 수 없어요. 복사를 써 주세요"); }
   };
   $("wq").oninput = renderWiki;
+  bindFolders();
   $("btnAddNote").onclick = () => { $("noteForm").hidden = false; $("nTitle").focus(); };
   $("nCancel").onclick = () => { $("noteForm").hidden = true; };
   $("noteForm").onsubmit = async e => {
