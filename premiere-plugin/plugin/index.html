@@ -184,6 +184,18 @@
     </div>
 
     <div class="box">
+      <div class="label">자가 진단</div>
+      <div class="hint">이 프리미어에서 플러그인 기능이 동작하는지 한 번에 점검합니다. 시퀀스를 열어 두고 누르세요. 테스트 마커를 잠깐 만들었다 지우고, Claude 사용량은 쓰지 않아요.</div>
+      <div class="buttons">
+        <button class="primary" id="btnDiag">자가 진단 시작</button>
+        <button id="btnDiagSave">진단 결과 저장</button>
+      </div>
+      <div class="list" id="diagList"></div>
+      <textarea id="diagText" rows="6" readonly style="display:none"></textarea>
+      <div class="hint" id="diagHint" style="display:none">위 글을 복사해서 Claude에게 보내 주면 문제를 바로 찾을 수 있어요.</div>
+    </div>
+
+    <div class="box">
       <div class="label">보내는 내용</div>
       <div class="hint">컨펌을 누르면 뽑은 프레임 이미지, 요청사항, (선택 시) 자막 목록이 Claude로 전송됩니다 (구독 방식은 PC의 Claude Code를 거쳐서). 맞춤법 검사는 자막 글자만 보냅니다. 네이버 엔진을 고르면 자막 글자가 네이버로 갑니다.</div>
     </div>

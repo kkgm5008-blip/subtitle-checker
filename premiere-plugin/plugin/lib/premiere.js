@@ -87,6 +87,10 @@ async function exportFrames(sequence, times, size, { onProgress, isCancelled } =
   return frames;
 }
 
+async function playerPosition(sequence) {
+  return secs(await sequence.getPlayerPosition());
+}
+
 async function seek(sequence, seconds) {
   return sequence.setPlayerPosition(at(seconds));
 }
@@ -179,4 +183,4 @@ async function readTimelineTexts(sequence, onProgress) {
   return found.map((s, i) => ({ index: i + 1, start: s.start, end: s.end, text: s.text, track: s.track }));
 }
 
-module.exports = { getActive, sequenceInfo, exportFrames, seek, addMarkers, removeMarkers, readTimelineTexts };
+module.exports = { getActive, sequenceInfo, exportFrames, playerPosition, seek, addMarkers, removeMarkers, readTimelineTexts };

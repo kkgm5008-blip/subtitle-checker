@@ -27,7 +27,7 @@
 
 ### 1단계: 플러그인 설치 (.ccx 더블클릭)
 
-1. 이 저장소의 [`premiere-plugin/dist/subtitle-checker-premiere-1.2.0-windows.zip`](dist/subtitle-checker-premiere-1.2.0-windows.zip)을 내려받아 압축을 풉니다 (GitHub에서 파일을 열고 Download raw file). 안에 `.ccx`, `claude-bridge.ps1`, `README.txt`가 있습니다. Mac은 [`.ccx`](dist/subtitle-checker-premiere-1.2.0.ccx)만 받으면 됩니다.
+1. 이 저장소의 [`premiere-plugin/dist/subtitle-checker-premiere-1.2.1-windows.zip`](dist/subtitle-checker-premiere-1.2.1-windows.zip)을 내려받아 압축을 풉니다 (GitHub에서 파일을 열고 Download raw file). 안에 `.ccx`, `claude-bridge.ps1`, `README.txt`가 있습니다. Mac은 [`.ccx`](dist/subtitle-checker-premiere-1.2.1.ccx)만 받으면 됩니다.
 2. 프리미어를 끈 상태에서 `.ccx` 파일을 더블클릭합니다. Creative Cloud 데스크톱 앱이 설치를 진행합니다. 마켓플레이스 밖에서 받은 플러그인이라는 확인 창이 나오면 설치를 계속하세요.
 3. 프리미어를 켜고 **창(Window) > UXP 플러그인(UXP Plugins) > 자막 맞춤법 · AI 컨펌**을 엽니다.
 
@@ -38,13 +38,13 @@
 Windows (PowerShell):
 
 ```powershell
-& "C:\Program Files\Common Files\Adobe\Adobe Desktop Common\RemoteComponents\UPI\UnifiedPluginInstallerAgent\UnifiedPluginInstallerAgent.exe" /install "$env:USERPROFILE\Downloads\subtitle-checker-premiere-1.2.0.ccx"
+& "C:\Program Files\Common Files\Adobe\Adobe Desktop Common\RemoteComponents\UPI\UnifiedPluginInstallerAgent\UnifiedPluginInstallerAgent.exe" /install "$env:USERPROFILE\Downloads\subtitle-checker-premiere-1.2.1.ccx"
 ```
 
 macOS (터미널):
 
 ```bash
-"/Library/Application Support/Adobe/Adobe Desktop Common/RemoteComponents/UPI/UnifiedPluginInstallerAgent/UnifiedPluginInstallerAgent.app/Contents/MacOS/UnifiedPluginInstallerAgent" --install ~/Downloads/subtitle-checker-premiere-1.2.0.ccx
+"/Library/Application Support/Adobe/Adobe Desktop Common/RemoteComponents/UPI/UnifiedPluginInstallerAgent/UnifiedPluginInstallerAgent.app/Contents/MacOS/UnifiedPluginInstallerAgent" --install ~/Downloads/subtitle-checker-premiere-1.2.1.ccx
 ```
 
 #### 개발자 모드 (UXP Developer Tool)
@@ -102,6 +102,10 @@ macOS (터미널):
 7. **타임라인에 마커로 표시**하면 빨강(필수)·주황(권장)·파랑(참고) 마커가 생기고, 마커 설명에 제안과 대안이 들어갑니다. **AI 마커 모두 지우기**는 이 플러그인이 만든 마커만 지웁니다.
 
 팁: **불러온 자막마다 한 장씩** 옵션을 켜면 자막이 바뀔 때마다 한 장씩 보내서, 자막마다 의견을 받기 좋아요.
+
+### 자가 진단 (잘 안 될 때)
+
+시퀀스를 열어 두고 **설정 → 자가 진단 시작**을 누르면, 이 프리미어에서 플러그인 기능이 되는지 한 번에 점검합니다: 시퀀스 읽기, 재생헤드 이동, 프레임 내보내기, 그래픽 텍스트 읽기, 마커 만들기·지우기, 구독 연결 프로그램(또는 API 키). 테스트 마커는 바로 지우고 Claude 사용량은 쓰지 않아요. 결과 글을 복사하거나 **진단 결과 저장**으로 저장해서 Claude에게 보내 주면 문제를 바로 찾을 수 있어요.
 
 ## 알아 둘 점
 

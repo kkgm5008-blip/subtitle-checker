@@ -46,6 +46,7 @@ const sequence = {
   getEndTime: async () => tick(60), getInPoint: async () => tick(10), getOutPoint: async () => tick(30),
   getFrameSize: async () => ({ width: 1920, height: 1080 }),
   setPlayerPosition: async t => { log.seeks.push(t.seconds); return true; },
+  getPlayerPosition: async () => tick(12),
   getVideoTrackCount: async () => tracks.length,
   getVideoTrack: async i => ({ getTrackItems: () => tracks[i] }),
 };
@@ -95,6 +96,7 @@ let openFile = null;
 const secure = new Map();
 const formats = { utf8: Symbol("utf8"), binary: Symbol("binary") };
 const uxp = {
+  host: { name: "premierepro", version: "26.5.0" },
   storage: {
     formats,
     secureStorage: {
@@ -113,6 +115,7 @@ const uxp = {
       }),
       getFileForOpening: async opts => { assert.deepEqual(opts.types, ["srt", "vtt", "txt"]); return openFile; },
       getFileForSaving: async (name, opts) => ({ name, write: async t => saved.push({ name, types: opts.types, text: t }) }),
+      getPluginFolder: async () => ({ getEntry: async n => ({ read: async () => fs.readFileSync(path.join(PLUGIN, n), "utf8") }) }),
     },
   },
   shell: { openExternal: async url => { log.opened = url; return ""; } },
@@ -334,6 +337,23 @@ async function until(pred, what) {
   // buttons re-enabled, cancel hidden
   assert.equal($("btnConfirm").disabled, false);
   assert.equal($("btnConfirmCancel").style.display, "none");
+
+  // 자가 진단: API 모드 (키 저장됨), 모든 단계 통과, 테스트 마커는 남지 않음
+  const marksBefore = markers.length;
+  click("btnDiag"); await until(() => /자가 진단: \d+개 중/.test($("diagText").value) && !$("btnDiag").disabled, "diagnostics");
+  console.log($("diagText").value);
+  assert.match($("diagText").value, /자가 진단: 7개 중 7개 통과/);
+  assert.match($("diagText").value, /프리미어 premierepro 26\.5\.0 · 플러그인 1\.\d+\.\d+/);
+  assert.match($("diagText").value, /프레임 1장 내보내기 — 1280x720 JPG/);
+  assert.match($("diagText").value, /그래픽 텍스트 읽기 — 2개/);
+  assert.equal(markers.length, marksBefore, "test marker removed");
+  // 구독 모드에서 연결 프로그램이 꺼져 있으면 그 단계만 실패
+  change("mode", "subscription"); bridgeUp = false;
+  click("btnDiag"); await until(() => /구독 연결 프로그램/.test($("diagText").value) && !$("btnDiag").disabled, "diagnostics sub");
+  assert.match($("diagText").value, /7개 중 6개 통과/);
+  assert.match($("diagText").value, /❌ 구독 연결 프로그램 — 구독 연결 프로그램이 꺼져 있어요/);
+  click("btnDiagSave"); await until(() => saved.some(x => x.name === "자가진단_결과.txt"), "diag saved");
+  bridgeUp = true; change("mode", "api");
 
   // prefs persisted
   const prefs = JSON.parse(window.localStorage.getItem("subtitle-checker.prefs"));

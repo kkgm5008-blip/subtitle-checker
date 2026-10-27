@@ -510,6 +510,86 @@ async function testKey() {
   }
 }
 
+/* ───────── 자가 진단 ───────── */
+
+const DIAG_PREFIX = report.AI_PREFIX + " 진단]";
+
+function diagReport(lines) {
+  const passed = lines.filter(l => l.ok).length;
+  return [`자가 진단: ${lines.length}개 중 ${passed}개 통과`].concat(lines.map(l => `${l.ok ? "✅" : "❌"} ${l.name}${l.detail ? ` — ${l.detail}` : ""}`)).join("\n");
+}
+
+function renderDiag(lines) {
+  $("diagList").innerHTML = lines.map(l => `<div class="line">${l.ok ? "✅" : "❌"} <b>${esc(l.name)}</b>${esc(l.detail)}</div>`).join("");
+  $("diagText").value = diagReport(lines);
+  show("diagText", true);
+  show("diagHint", true);
+}
+
+async function runDiagnostics() {
+  if (state.busy) return;
+  setBusy(true);
+  const lines = [];
+  const step = async (name, fn) => {
+    try { lines.push({ ok: true, name, detail: (await fn()) || "" }); }
+    catch (e) { lines.push({ ok: false, name, detail: (e && e.message) || String(e) }); }
+    renderDiag(lines);
+  };
+  try {
+    const env = await host.environment();
+    lines.push({ ok: true, name: "환경", detail: `프리미어 ${env.app} · 플러그인 ${env.plugin} · ${subscription() ? "내 구독" : "API 키"} · ${state.prefs.model}` });
+    renderDiag(lines);
+    let ctx = null, info = null, pos = 0;
+    await step("열린 시퀀스", async () => {
+      ctx = await pr.getActive();
+      info = await pr.sequenceInfo(ctx.sequence);
+      return `${info.name} · ${srt.formatClock(info.end)} · ${info.width}x${info.height}${info.hasInOut ? ` · 인/아웃 ${srt.formatClock(info.inPoint)}~${srt.formatClock(info.outPoint)}` : ""}`;
+    });
+    if (ctx) {
+      await step("재생헤드 읽기·이동", async () => {
+        pos = await pr.playerPosition(ctx.sequence);
+        await pr.seek(ctx.sequence, pos);
+        return `${srt.formatClock(pos)} (같은 자리로 다시 이동)`;
+      });
+      await step("프레임 1장 내보내기", async () => {
+        const size = sampling.frameSize(info.width, info.height, state.prefs.longEdge);
+        const t = Math.min(pos, Math.max(0, info.end - 0.1));
+        const [f] = await pr.exportFrames(ctx.sequence, [t], size);
+        return `${size.width}x${size.height} ${f.mediaType === "image/png" ? "PNG" : "JPG"} · ${Math.max(1, Math.round(f.bytes.byteLength / 1024))}KB`;
+      });
+      await step("그래픽 텍스트 읽기", async () => {
+        const list = await pr.readTimelineTexts(ctx.sequence);
+        return list.length ? `${list.length}개 · 첫 번째 "${list[0].text.replace(/\n/g, " ").slice(0, 30)}"` : "0개 (그래픽 자막이 없으면 정상)";
+      });
+      await step("마커 만들기·지우기", async () => {
+        await pr.addMarkers(ctx.project, ctx.sequence, [{ name: DIAG_PREFIX + " 테스트", start: pos, duration: 0, comments: "자가 진단용 마커", color: "GREEN" }]);
+        const removed = await pr.removeMarkers(ctx.project, ctx.sequence, DIAG_PREFIX);
+        if (!removed) throw new Error("마커를 만들었지만 다시 찾지 못했어요");
+        return "만들고 지움";
+      });
+    }
+    if (subscription()) {
+      await step("구독 연결 프로그램", async () => {
+        const h = await bridge.health();
+        return `${h.version || "연결됨"} (Claude 로그인까지 보려면 '구독 연결 확인')`;
+      });
+    } else {
+      await step("API 키", async () => {
+        if (!state.apiKey) throw new Error("설정 탭에 API 키가 없어요");
+        return "저장돼 있음 (키가 맞는지는 '연결 테스트')";
+      });
+    }
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function saveDiagnostics() {
+  const text = $("diagText").value;
+  if (!text) return;
+  try { await host.saveTextFile("자가진단_결과.txt", text, ["txt"]); } catch (e) { /* 저장 취소 */ }
+}
+
 /* ───────── 시작 ───────── */
 
 function fillForm() {
@@ -566,6 +646,8 @@ function bind() {
 
   $("mode").addEventListener("change", () => { state.prefs.mode = $("mode").value; savePrefs(); updateModeUI(); });
   $("btnTestSub").addEventListener("click", testSubscription);
+  $("btnDiag").addEventListener("click", runDiagnostics);
+  $("btnDiagSave").addEventListener("click", saveDiagnostics);
   $("btnSaveKey").addEventListener("click", saveKey);
   $("btnTestKey").addEventListener("click", testKey);
   $("btnGetKey").addEventListener("click", () => host.openExternal("https://console.anthropic.com/settings/keys"));

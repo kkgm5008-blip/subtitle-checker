@@ -73,4 +73,15 @@ async function openExternal(url) {
   catch (e) { return false; }
 }
 
-module.exports = { utf8Decode, loadPrefs, savePrefs, loadApiKey, saveApiKey, openTextFile, saveTextFile, openExternal };
+/** 프리미어 버전과 플러그인 버전 (자가 진단용) */
+async function environment() {
+  let app = "", plugin = "";
+  try { const h = uxp().host; app = `${h.name || ""} ${h.version || ""}`.trim(); } catch (e) { /* 알 수 없음 */ }
+  try {
+    const folder = await uxp().storage.localFileSystem.getPluginFolder();
+    plugin = JSON.parse(await (await folder.getEntry("manifest.json")).read()).version || "";
+  } catch (e) { /* 알 수 없음 */ }
+  return { app: app || "알 수 없음", plugin: plugin || "알 수 없음" };
+}
+
+module.exports = { utf8Decode, loadPrefs, savePrefs, loadApiKey, saveApiKey, openTextFile, saveTextFile, openExternal, environment };
